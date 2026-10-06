@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Data & DB
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated Reports
+executive_report_*.pdf
+executive_report_*.xlsx
+executive_report_*.pptx
+
+# Temp Files
+code_only.txt
+*.bak
+*.backup

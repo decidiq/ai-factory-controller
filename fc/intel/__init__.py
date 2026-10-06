@@ -1,0 +1,1 @@
+"""Modul intelligence — Cost DNA, What-If, Predictive, Prescriptive."""

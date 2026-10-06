@@ -1,0 +1,9 @@
+streamlit>=1.30
+pandas>=2.0
+numpy
+openpyxl
+plotly
+# dipakai halaman lama (dashboard.py) selama masa migrasi:
+scikit-learn
+fpdf
+python-pptx
