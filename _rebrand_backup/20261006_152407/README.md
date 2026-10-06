@@ -1,4 +1,4 @@
-# Decidiq — Tahap 1A (Fondasi Data & KPI)
+# AI Factory Controller — Tahap 1A (Fondasi Data & KPI)
 
 Lapisan analitik **read-only**: membaca data dari Excel (Google Sheets, Odoo, SAP/QAD menyusul),
 memvalidasi, lalu menghitung KPI dengan rumus resmi BRD bagian 6.

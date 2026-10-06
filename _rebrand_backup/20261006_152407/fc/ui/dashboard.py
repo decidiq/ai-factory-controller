@@ -92,8 +92,8 @@ def render(ds: Dataset, scope: Scope) -> None:
     s = summarize(ds, scope)
     targets = _active_targets()
 
-    st.title("🏭 DECIDIQ")
-    st.markdown("##### *Decision Intelligence Dashboard*")
+    st.title("🏭 AI FACTORY CONTROLLER")
+    st.markdown("##### *Manufacturing Cost Control & Performance Dashboard*")
 
     # Info target aktif
     st.caption(

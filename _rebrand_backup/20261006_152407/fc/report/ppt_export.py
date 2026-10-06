@@ -55,7 +55,7 @@ def _add_title_slide(prs: Presentation, ds: Dataset, scope: Scope) -> None:
     # Subtitle
     tb2 = slide.shapes.add_textbox(Inches(0.8), Inches(3.5), Inches(8.4), Inches(0.8))
     tf2 = tb2.text_frame
-    tf2.text = "Decidiq"
+    tf2.text = "AI Factory Controller"
     p2 = tf2.paragraphs[0]
     p2.font.size = Pt(24)
     p2.font.color.rgb = RGBColor(0x60, 0xA5, 0xFA)
@@ -451,7 +451,7 @@ def _add_slide_header(slide, title: str) -> None:
     # Footer
     tb2 = slide.shapes.add_textbox(Inches(0.6), Inches(7.0), Inches(9.0), Inches(0.4))
     tf2 = tb2.text_frame
-    tf2.text = f"Decidiq · {datetime.now():%d-%m-%Y %H:%M}"
+    tf2.text = f"AI Factory Controller · {datetime.now():%d-%m-%Y %H:%M}"
     tf2.paragraphs[0].font.size = Pt(8)
     tf2.paragraphs[0].font.color.rgb = COLOR_GRAY
     tf2.paragraphs[0].alignment = PP_ALIGN.CENTER

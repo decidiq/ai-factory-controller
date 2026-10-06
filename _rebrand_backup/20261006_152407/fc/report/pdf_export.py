@@ -33,7 +33,7 @@ class ReportPDF(FPDF):
     def header(self):
         self.set_font("Helvetica", "B", 9)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 6, "Decidiq - Executive Report", align="L")
+        self.cell(0, 6, "AI Factory Controller - Executive Report", align="L")
         self.cell(0, 6, datetime.now().strftime("%d-%m-%Y %H:%M"),
                   align="R", new_x="LMARGIN", new_y="NEXT")
         self.set_draw_color(200, 200, 200)
@@ -126,8 +126,8 @@ def generate_pdf(ds: Dataset, scope: Scope,
     pdf.cell(0, 12, "EXECUTIVE REPORT", align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 14)
     pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 10, "Decidiq", align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(0, 8, "Decision Intelligence Platform",
+    pdf.cell(0, 10, "AI Factory Controller", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, "Manufacturing Intelligence Platform",
              align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(15)
 

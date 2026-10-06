@@ -1,4 +1,4 @@
-"""Decidiq - entry point (Tahap 1A: fondasi data & KPI).
+"""AI Factory Controller - entry point (Tahap 1A: fondasi data & KPI).
 
 Jalankan:  streamlit run app.py
 """
@@ -26,7 +26,7 @@ from fc.ui import (
     settings, memory,
 )
 
-st.set_page_config(page_title="Decidiq", layout="wide")
+st.set_page_config(page_title="AI Factory Controller", layout="wide")
 styles.inject()
 
 # Inisialisasi DB audit (sekali saja)

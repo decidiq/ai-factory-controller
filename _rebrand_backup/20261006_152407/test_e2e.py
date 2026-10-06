@@ -1,7 +1,7 @@
 import pandas as pd
 
 def run_end_to_end_test():
-    print("=== MEMULAI PENGUJIAN END-TO-END (E2E) DECIDIQ ===")
+    print("=== MEMULAI PENGUJIAN END-TO-END (E2E) AI FACTORY CONTROLLER ===")
     
     # 1. Uji Ketersediaan Modul Utama
     modules_to_test = [
