@@ -52,14 +52,25 @@ def _log_local(user: str, action: str) -> None:
             "User": user, "Action": action})
 
 
+def _is_session_valid() -> bool:
+    """Session valid kalau authenticated=True DAN role ada di session."""
+    return (st.session_state.get("authenticated") is True
+            and "role" in st.session_state
+            and st.session_state.get("role") in ROLE_MENUS)
+
+
 def require_login() -> None:
-    if st.session_state.get("authenticated"):
+    # Kalau session valid → lanjut
+    if _is_session_valid():
         return
 
-    # Custom CSS untuk login page
+    # Kalau session corrupt → clear
+    if st.session_state.get("authenticated"):
+        st.session_state.clear()
+
+    # Custom CSS
     st.markdown("""
     <style>
-    /* Login container */
     .login-hero {
         text-align: center;
         padding: 40px 20px 20px 20px;
@@ -86,13 +97,6 @@ def require_login() -> None:
         color: #94A3B8;
         font-style: italic;
     }
-    .login-card {
-        background: #FFFFFF;
-        border: 1px solid #E9D5FF;
-        border-radius: 18px;
-        padding: 30px;
-        box-shadow: 0 10px 40px rgba(139, 92, 246, 0.15);
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -100,7 +104,6 @@ def require_login() -> None:
     _, mid, _ = st.columns([1, 1.2, 1])
 
     with mid:
-        # Brand hero
         st.markdown("""
         <div class="login-hero">
             <div class="login-brand">Decidiq</div>
@@ -127,25 +130,38 @@ def require_login() -> None:
 
             if st.button("Sign In →", type="primary",
                          use_container_width=True, key="login_btn"):
-                if user.strip():
-                    username = user.strip()
-                    st.session_state.update(
-                        authenticated=True, username=username, role=role)
-                    _log_local(username, f"Login [{role}]")
-                    audit.log_login(username, role)
-                    st.rerun()
-                else:
+                username = (user or "").strip()
+                if not username:
                     st.error("Masukkan username Anda.")
+                elif role not in ROLE_MENUS:
+                    st.error("Role tidak valid.")
+                else:
+                    # Set session LENGKAP
+                    st.session_state["authenticated"] = True
+                    st.session_state["username"] = username
+                    st.session_state["role"] = role
+
+                    _log_local(username, f"Login [{role}]")
+                    try:
+                        audit.log_login(username, role)
+                    except Exception:
+                        pass
+
+                    st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.caption("⚠️ Login sementara — belum verifikasi password")
         st.caption("Demo: username apa saja · role pilih bebas")
 
+    st.stop()
+
 
 def logout() -> None:
     username = st.session_state.get("username", "")
     _log_local(username, "Logout")
-    audit.log_logout(username)
-    for k in ("authenticated", "username", "role"):
-        st.session_state.pop(k, None)
+    try:
+        audit.log_logout(username)
+    except Exception:
+        pass
+    st.session_state.clear()
     st.rerun()

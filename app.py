@@ -136,14 +136,6 @@ def _load_demo() -> Dataset:
 
 # ==================== SIDEBAR ====================
 
-# Safety check: pastikan session state lengkap
-if not st.session_state.get("authenticated") or "role" not in st.session_state:
-    st.error("⚠️ Sesi login tidak valid. Silakan login ulang.")
-    if st.button("🔄 Login Ulang", type="primary"):
-        st.session_state.clear()
-        st.rerun()
-    st.stop()
-
 role = st.session_state["role"]
 st.sidebar.title("🎛 Control Panel")
 st.sidebar.markdown(f"👤 **User:** `{st.session_state['username']}`")
