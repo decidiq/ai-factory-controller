@@ -144,7 +144,7 @@ if st.sidebar.button("🚪 Keluar / Logout"):
     auth.logout()
 st.sidebar.markdown("---")
 
-# ---------- NAVIGASI DENGAN SUB-MENU ----------
+# ---------- NAVIGASI DENGAN EXPANDER (COLLAPSIBLE) ----------
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🧭 Navigation")
 
@@ -155,47 +155,33 @@ if "menu" not in st.session_state or st.session_state["menu"] is None:
 role_menus = auth.ROLE_MENUS[role]
 menu = st.session_state["menu"]
 
-# Render sub-menu per kategori
+# Render tiap kategori sebagai expander (collapsible)
 for category, items in role_menus.items():
-    # Header kategori
-    st.sidebar.markdown(
-        f'<div style="'
-        f'color: #A78BFA;'
-        f'font-size: 0.7rem;'
-        f'font-weight: 700;'
-        f'letter-spacing: 1.2px;'
-        f'margin: 14px 0 6px 0;'
-        f'text-transform: uppercase;'
-        f'padding: 4px 8px;'
-        f'border-left: 2px solid #8B5CF6;'
-        f'">{category}</div>',
-        unsafe_allow_html=True,
-    )
+    # Cek apakah kategori ini punya menu aktif
+    has_active = menu in items
 
-    # Menu items
-    for item in items:
-        is_active = (menu == item)
+    # Label dengan indikator bulat kalau ada active
+    expander_label = f"{category}" + ("  ●" if has_active else "")
 
-        # Style untuk tombol menu
-        if is_active:
-            label = f"▶ {item}"
-        else:
-            label = f"   {item}"
+    # Default: expanded kalau ada active, collapsed kalau tidak
+    with st.sidebar.expander(expander_label, expanded=has_active):
+        for item in items:
+            is_active = (menu == item)
 
-        if st.sidebar.button(
-            label,
-            key=f"nav_{item.replace(' ', '_')}",
-            use_container_width=True,
-            type="primary" if is_active else "secondary",
-        ):
-            st.session_state["menu"] = item
-            st.rerun()
+            # Label dengan prefix ▶ untuk active
+            label = f"▶  {item}" if is_active else f"     {item}"
 
-# Refresh menu dari session state (biar konsisten)
+            if st.button(
+                label,
+                key=f"nav_{item.replace(' ', '_').replace('/', '_')}",
+                use_container_width=True,
+                type="primary" if is_active else "secondary",
+            ):
+                st.session_state["menu"] = item
+                st.rerun()
+
+# Update menu dari session state
 menu = st.session_state.get("menu", "Dashboard")
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("🗂 Sumber Data")
 
 # Label radio HARUS sama persis dengan kondisi if-elif di bawah
 mode = st.sidebar.radio(
@@ -211,7 +197,6 @@ if st.sidebar.button("🔄 Refresh data"):
     st.rerun()
 
 st.sidebar.markdown("---")
-
 
 # ==================== MODE SELECTION ====================
 

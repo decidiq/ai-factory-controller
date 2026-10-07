@@ -15,61 +15,116 @@ CSS = """
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #1E1B4B 0%, #312E81 100%);
     color: #E9D5FF;
-    min-width: 260px !important;
-    max-width: 260px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
 }
 [data-testid="stSidebar"] > div:first-child {
     background: transparent;
 }
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 {
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] h4 {
     color: #FFFFFF !important;
     font-weight: 700;
     letter-spacing: -0.3px;
 }
 [data-testid="stSidebar"] p,
 [data-testid="stSidebar"] span,
-[data-testid="stSidebar"] label {
-    color: #C4B5FD !important;
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] div {
+    color: #E9D5FF;
 }
-[data-testid="stSidebar"] .stRadio > label {
-    color: #E9D5FF !important;
-    font-weight: 500;
-    font-size: 0.9rem;
-}
-[data-testid="stSidebar"] .stRadio [role="radiogroup"] label {
-    padding: 8px 12px;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    color: #E9D5FF !important;
-}
-[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:hover {
-    background: rgba(139, 92, 246, 0.15);
-}
-[data-testid="stSidebar"] .stRadio [role="radiogroup"] label[data-checked="true"],
-[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:has(input:checked) {
-    background: linear-gradient(90deg, #8B5CF6 0%, #A855F7 100%);
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-}
-[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:has(input:checked) p,
-[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:has(input:checked) span {
-    color: #FFFFFF !important;
-    font-weight: 600;
+[data-testid="stSidebar"] hr {
+    border-color: rgba(139, 92, 246, 0.3) !important;
+    margin: 16px 0 !important;
 }
 
-/* Sidebar buttons */
-[data-testid="stSidebar"] .stButton > button {
-    background: rgba(139, 92, 246, 0.2);
-    color: #FFFFFF;
-    border: 1px solid rgba(139, 92, 246, 0.4);
-    border-radius: 8px;
-    font-weight: 600;
-    transition: all 0.2s ease;
+/* === SIDEBAR BUTTONS — FIX WHITE ON WHITE === */
+[data-testid="stSidebar"] button {
+    width: 100% !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    padding: 8px 14px !important;
+    font-weight: 500 !important;
+    font-size: 0.85rem !important;
+    border-radius: 8px !important;
+    transition: all 0.15s ease !important;
+    margin-bottom: 2px !important;
+    min-height: auto !important;
+    height: auto !important;
 }
-[data-testid="stSidebar"] .stButton > button:hover {
-    background: rgba(139, 92, 246, 0.35);
-    border-color: #8B5CF6;
+
+/* Inactive button (secondary) */
+[data-testid="stSidebar"] button[kind="secondary"] {
+    background: rgba(139, 92, 246, 0.12) !important;
+    color: #C4B5FD !important;
+    border: 1px solid rgba(139, 92, 246, 0.2) !important;
+}
+[data-testid="stSidebar"] button[kind="secondary"]:hover {
+    background: rgba(139, 92, 246, 0.25) !important;
+    color: #FFFFFF !important;
+    border-color: rgba(139, 92, 246, 0.5) !important;
+}
+[data-testid="stSidebar"] button[kind="secondary"] p,
+[data-testid="stSidebar"] button[kind="secondary"] div,
+[data-testid="stSidebar"] button[kind="secondary"] span {
+    color: #C4B5FD !important;
+    text-align: left !important;
+}
+
+/* Active button (primary) */
+[data-testid="stSidebar"] button[kind="primary"] {
+    background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4) !important;
+    font-weight: 700 !important;
+}
+[data-testid="stSidebar"] button[kind="primary"] p,
+[data-testid="stSidebar"] button[kind="primary"] div,
+[data-testid="stSidebar"] button[kind="primary"] span {
+    color: #FFFFFF !important;
+    text-align: left !important;
+}
+
+/* === SIDEBAR EXPANDER (untuk kategori menu) === */
+[data-testid="stSidebar"] [data-testid="stExpander"] {
+    background: transparent !important;
+    border: none !important;
+    margin: 0 !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] details {
+    background: transparent !important;
+    border: none !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+    background: rgba(139, 92, 246, 0.15) !important;
+    color: #E9D5FF !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 1px !important;
+    text-transform: uppercase !important;
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    border-left: 3px solid #8B5CF6 !important;
+    cursor: pointer !important;
+    margin-bottom: 4px !important;
+    transition: all 0.15s ease !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
+    background: rgba(139, 92, 246, 0.25) !important;
+    color: #FFFFFF !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary p,
+[data-testid="stSidebar"] [data-testid="stExpander"] summary span,
+[data-testid="stSidebar"] [data-testid="stExpander"] summary svg {
+    color: #E9D5FF !important;
+    fill: #E9D5FF !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+    background: transparent !important;
+    padding: 4px 0 8px 8px !important;
 }
 
 /* === TYPOGRAPHY === */
@@ -140,44 +195,37 @@ div[data-testid="stExpander"] summary {
     color: #4C1D95;
 }
 
+/* === MAIN CONTENT BUTTONS (bukan sidebar) === */
+.main button[kind="secondary"] {
+    background: #FFFFFF;
+    color: #6D28D9;
+    border: 1.5px solid #E9D5FF;
+    border-radius: 10px;
+    font-weight: 600;
+}
+.main button[kind="secondary"]:hover {
+    background: #F5F3FF;
+    border-color: #8B5CF6;
+}
+.main button[kind="primary"] {
+    background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+}
+.main button[kind="primary"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+}
+
 /* === ALERTS === */
 div[data-testid="stAlert"] {
     border-radius: 12px;
     border: none;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     padding: 16px 18px;
-}
-div[data-testid="stAlert"][data-baseweb="notification"] {
-    border-left: 4px solid;
-}
-
-/* === BUTTONS === */
-.stButton > button[kind="primary"] {
-    background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
-    color: #FFFFFF;
-    border: none;
-    border-radius: 10px;
-    font-weight: 700;
-    padding: 10px 20px;
-    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
-    transition: all 0.2s ease;
-    letter-spacing: 0.2px;
-}
-.stButton > button[kind="primary"]:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
-}
-.stButton > button[kind="secondary"] {
-    background: #FFFFFF;
-    color: #6D28D9;
-    border: 1.5px solid #E9D5FF;
-    border-radius: 10px;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-.stButton > button[kind="secondary"]:hover {
-    background: #F5F3FF;
-    border-color: #8B5CF6;
 }
 
 /* === INPUT === */
@@ -251,23 +299,6 @@ hr {
     color: #64748B;
     font-size: 0.8rem;
     font-weight: 500;
-}
-
-/* === PLOTLY === */
-.js-plotly-plot .plotly .modebar {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border-radius: 8px;
-}
-
-/* === SPECIAL: BRAND LOGO === */
-.decidiq-logo {
-    font-weight: 900;
-    font-size: 1.4rem;
-    letter-spacing: -0.5px;
-    background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
 }
 
 /* === HIDE STREAMLIT MENU === */
