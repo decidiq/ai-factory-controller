@@ -38,10 +38,83 @@ except Exception as e:
 
 auth.require_login()
 
+
+# ==================== HELPER FUNCTIONS ====================
+
+def _render_template_prompt():
+    """Halaman download template — dipakai di mode 'Unggah Excel' kalau belum upload."""
+    try:
+        from fc.template import generate_template
+    except Exception as e:
+        st.error(f"Template tidak tersedia: {e}")
+        return
+
+    st.title("📤 Upload File Excel Anda")
+    st.markdown(
+        "### Belum punya file Excel?\n"
+        "Download **template Excel** dulu → isi dengan data pabrik → upload kembali."
+    )
+    st.markdown("---")
+    st.markdown("### 📋 Format Template — 11 Sheet")
+    st.markdown(
+        "| # | Sheet | Isi |\n"
+        "|---|-------|-----|\n"
+        "| 1 | **Production** | Data produksi harian |\n"
+        "| 2 | **Raw_Material** | Material, Cost, Qty_Kg |\n"
+        "| 3 | **Packaging** | Biaya kemasan |\n"
+        "| 4 | **Direct_Labor** | Biaya tenaga kerja |\n"
+        "| 5 | **Utility** | Biaya listrik, air |\n"
+        "| 6 | **Maintenance** | Biaya pemeliharaan |\n"
+        "| 7 | **Depreciation** | Penyusutan bulanan |\n"
+        "| 8 | **Budget** | Budget vs Actual |\n"
+        "| 9 | **Inventory** | Stok material |\n"
+        "| 10 | **Risk_Register** | Daftar risiko |\n"
+        "| 11 | **Config** | Target KPI (opsional) |\n"
+    )
+    st.info(
+        "💡 **Kolom WAJIB:** Date, Machine, Output_Kg (Production); "
+        "Material, Cost, Qty_Kg (Raw_Material). Kolom lain opsional."
+    )
+    st.markdown("---")
+
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        template_bytes = generate_template()
+        st.download_button(
+            label="📄 Download Template Excel",
+            data=template_bytes,
+            file_name="decidiq_template.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="primary",
+            key="tmpl_main_download",
+        )
+    st.stop()
+
+
+def _render_sidebar_template_button():
+    """Tombol download template kecil di sidebar — dipakai di beberapa mode."""
+    st.sidebar.markdown("**📥 Belum punya file Excel?**")
+    try:
+        from fc.template import generate_template
+        st.sidebar.download_button(
+            label="📄 Download Template",
+            data=generate_template(),
+            file_name="decidiq_template.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            key="sidebar_tmpl_dl",
+        )
+    except Exception:
+        pass
+    st.sidebar.markdown("---")
+
+
 def _is_demo_path(path: str) -> bool:
     if not path:
         return False
-    return any(h in os.path.basename(path).lower() for h in ("demo", "sample", "contoh"))
+    return any(h in os.path.basename(path).lower()
+               for h in ("demo", "sample", "contoh"))
 
 
 @st.cache_data(show_spinner="Membaca dan memvalidasi data...")
@@ -57,10 +130,20 @@ def _load_upload(content: bytes, name: str) -> Dataset:
 
 @st.cache_data(show_spinner="Menyiapkan data demo...")
 def _load_demo() -> Dataset:
-    return load_dataset(MemoryConnector(make_demo_frames(), label="DEMO DATA"), is_demo=True)
+    return load_dataset(MemoryConnector(make_demo_frames(), label="DEMO DATA"),
+                        is_demo=True)
 
 
-# ---------- sidebar ----------
+# ==================== SIDEBAR ====================
+
+# Safety check: pastikan session state lengkap
+if not st.session_state.get("authenticated") or "role" not in st.session_state:
+    st.error("⚠️ Sesi login tidak valid. Silakan login ulang.")
+    if st.button("🔄 Login Ulang", type="primary"):
+        st.session_state.clear()
+        st.rerun()
+    st.stop()
+
 role = st.session_state["role"]
 st.sidebar.title("🎛 Control Panel")
 st.sidebar.markdown(f"👤 **User:** `{st.session_state['username']}`")
@@ -68,62 +151,79 @@ st.sidebar.markdown(f"🛡 **Role:** `{role}`")
 if st.sidebar.button("🚪 Keluar / Logout"):
     auth.logout()
 st.sidebar.markdown("---")
+
 menu = st.sidebar.radio("Navigation", auth.ROLE_MENUS[role])
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🗂 Sumber Data")
-mode = st.sidebar.radio("Sumber", ["File Excel", "Unggah Excel", "Mode Demo"],
-                        label_visibility="collapsed")
+
+# Label radio HARUS sama persis dengan kondisi if-elif di bawah
+mode = st.sidebar.radio(
+    "Sumber",
+    ["📁 Path File Excel", "📤 Unggah Excel", "🧪 Mode Demo"],
+    label_visibility="collapsed",
+    key="data_mode",
+)
+
 if st.sidebar.button("🔄 Refresh data"):
     audit.log("refresh_data")
     st.cache_data.clear()
     st.rerun()
 
-if mode == "File Excel":
+st.sidebar.markdown("---")
+
+
+# ==================== MODE SELECTION ====================
+
+if mode == "📁 Path File Excel":
+    # Text input untuk path file
+    _render_sidebar_template_button()
+
     path = st.sidebar.text_input("Path file", DEFAULT_DATA_FILE)
-    ds = _load_file(path,
-                    os.path.getmtime(path) if os.path.exists(path) else 0.0,
-                    _is_demo_path(path))
-elif mode == "Unggah Excel":
-    up = st.sidebar.file_uploader("Pilih file .xlsx", type=["xlsx"])
+    ds = _load_file(
+        path,
+        os.path.getmtime(path) if os.path.exists(path) else 0.0,
+        _is_demo_path(path),
+    )
+
+elif mode == "📤 Unggah Excel":
+    # File uploader + prompt template
+    _render_sidebar_template_button()
+
+    up = st.sidebar.file_uploader("📤 Pilih file .xlsx", type=["xlsx"],
+                                   key="upload_main")
     if up is None:
-        st.info("Unggah file Excel di sidebar untuk memulai.")
-        st.stop()
+        _render_template_prompt()  # ⬅️ panggil helper, tidak duplikat
     ds = _load_upload(up.getvalue(), up.name)
-else:
+
+else:  # Mode Demo
     ds = _load_demo()
 
-# Log sumber data sekali per sesi
-if st.session_state.get("_last_source") != ds.report.source_label:
-    st.session_state["_last_source"] = ds.report.source_label
-    st.session_state["_last_ds_label"] = ds.report.source_label
-    audit.log("load_data", {
-        "source": ds.report.source_label,
-        "is_demo": ds.is_demo,
-        "rows_rejected": ds.report.rows_rejected,
-        "ok": ds.ok,
-    })
 
-# ---------- status data ----------
+# ==================== STATUS DATA ====================
+
 if ds.is_demo:
     st.warning("🧪 **DEMO DATA** - angka di bawah adalah data contoh, bukan data pabrik Anda.")
+
 if not ds.ok:
     st.title("🧪 Kualitas Data")
     data_quality.render_blocking(ds)
     st.stop()
+
 if ds.report.rows_rejected:
     st.warning(f"⚠️ {ds.report.rows_rejected} baris data ditolak oleh validasi. "
                "Lihat menu **Kualitas Data**.")
 
-# ---------- filter global ----------
+
+# ==================== FILTER GLOBAL ====================
+
 st.sidebar.markdown("---")
 st.sidebar.subheader("📅 Periode Analisis")
 
-# Preset periode
 span = ds.date_span()
 if span is not None:
     lo, hi = span
-    
+
     preset = st.sidebar.radio(
         "Pilih Periode",
         ["Semua Data", "30 Hari Terakhir", "Bulan Ini", "Bulan Lalu", "Custom"],
@@ -131,10 +231,10 @@ if span is not None:
         label_visibility="collapsed",
         key="period_preset",
     )
-    
+
     from datetime import date, timedelta
-    today = hi  # Pakai tanggal terakhir data, bukan hari ini
-    
+    today = hi
+
     if preset == "Semua Data":
         start, end = lo, hi
     elif preset == "30 Hari Terakhir":
@@ -144,7 +244,6 @@ if span is not None:
         start = max(lo, date(today.year, today.month, 1))
         end = hi
     elif preset == "Bulan Lalu":
-        # Bulan lalu
         first_this_month = date(today.year, today.month, 1)
         last_month_end = first_this_month - timedelta(days=1)
         start = max(lo, date(last_month_end.year, last_month_end.month, 1))
@@ -163,11 +262,11 @@ if span is not None:
             start = end = dr[0]
         else:
             start = end = dr
-    
-    # Tampilkan periode aktif
+
     st.sidebar.caption(f"📆 Aktif: **{start}** s/d **{end}**")
 else:
     start = end = None
+
 
 # Filter Plant & Line
 st.sidebar.markdown("---")
@@ -183,6 +282,7 @@ scope = Scope(
     None if line == "Semua" else line,
     start, end,
 )
+
 # Muat targets dari DB — sesuaikan dengan filter tanggal aktif
 try:
     from fc.settings import get_active_targets
@@ -190,7 +290,9 @@ try:
 except Exception:
     pass
 
-# ---------- routing ----------
+
+# ==================== ROUTING ====================
+
 if menu == "Dashboard":
     dashboard.render(ds, scope)
 elif menu == "Kualitas Data":
