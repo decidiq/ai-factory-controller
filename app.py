@@ -144,7 +144,55 @@ if st.sidebar.button("🚪 Keluar / Logout"):
     auth.logout()
 st.sidebar.markdown("---")
 
-menu = st.sidebar.radio("Navigation", auth.ROLE_MENUS[role])
+# ---------- NAVIGASI DENGAN SUB-MENU ----------
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🧭 Navigation")
+
+# Init menu di session state
+if "menu" not in st.session_state or st.session_state["menu"] is None:
+    st.session_state["menu"] = "Dashboard"
+
+role_menus = auth.ROLE_MENUS[role]
+menu = st.session_state["menu"]
+
+# Render sub-menu per kategori
+for category, items in role_menus.items():
+    # Header kategori
+    st.sidebar.markdown(
+        f'<div style="'
+        f'color: #A78BFA;'
+        f'font-size: 0.7rem;'
+        f'font-weight: 700;'
+        f'letter-spacing: 1.2px;'
+        f'margin: 14px 0 6px 0;'
+        f'text-transform: uppercase;'
+        f'padding: 4px 8px;'
+        f'border-left: 2px solid #8B5CF6;'
+        f'">{category}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Menu items
+    for item in items:
+        is_active = (menu == item)
+
+        # Style untuk tombol menu
+        if is_active:
+            label = f"▶ {item}"
+        else:
+            label = f"   {item}"
+
+        if st.sidebar.button(
+            label,
+            key=f"nav_{item.replace(' ', '_')}",
+            use_container_width=True,
+            type="primary" if is_active else "secondary",
+        ):
+            st.session_state["menu"] = item
+            st.rerun()
+
+# Refresh menu dari session state (biar konsisten)
+menu = st.session_state.get("menu", "Dashboard")
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🗂 Sumber Data")

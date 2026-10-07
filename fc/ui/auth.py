@@ -7,44 +7,66 @@ from .. import audit
 
 ROLES = ["Director / GM", "Factory Manager / Plant Controller"]
 
-ROLE_MENUS = {
-    "Director / GM": [
-        "Dashboard",
-        "Kualitas Data",
-        "Audit Trail",
-        "Cost DNA",
-        "What-If Simulator",
-        "Recommendations",
-        "Memory",
-        "Cost Analysis",
-        "Multi-Plant & Cost Allocation",
-        "Executive Report",
-        "AI Copilot",
-        "Settings",
-    ],
-    "Factory Manager / Plant Controller": [
-        "Dashboard",
-        "Kualitas Data",
-        "Audit Trail",
-        "Production Analysis",
-        "Predictive Analytics",
-        "Cost DNA",
-        "What-If Simulator",
-        "Recommendations",
-        "Memory",
-        "Cost Analysis",
-        "Multi-Plant & Cost Allocation",
-        "Manufacturing Variance",
-        "Inventory Analysis",
-        "Risk Register",
-        "Multi-Agent Collaboration",
-        "AI Factory OS (Phase 5)",
-        "Executive Report",
-        "AI Copilot",
-        "Settings",
-    ],
-}
+# ==================== MENU STRUCTURE (NESTED) ====================
 
+ROLE_MENUS = {
+    "Director / GM": {
+        "📊 OVERVIEW": [
+            "Dashboard",
+            "Executive Report",
+            "Kualitas Data",
+        ],
+        "💰 COST INTELLIGENCE": [
+            "Cost DNA",
+            "Standard vs Actual",
+            "Cost Analysis",
+            "Multi-Plant & Cost Allocation",
+        ],
+        "🎯 DECISION SUPPORT": [
+            "Recommendations",
+            "Memory",
+            "AI Copilot",
+        ],
+        "⚙️ SYSTEM": [
+            "Audit Trail",
+            "Settings",
+        ],
+    },
+    "Factory Manager / Plant Controller": {
+        "📊 OVERVIEW": [
+            "Dashboard",
+            "Executive Report",
+            "Kualitas Data",
+        ],
+        "💰 COST INTELLIGENCE": [
+            "Cost DNA",
+            "Standard vs Actual",
+            "Cost Analysis",
+            "Manufacturing Variance",
+            "What-If Simulator",
+            "Multi-Plant & Cost Allocation",
+        ],
+        "🏭 OPERATIONS": [
+            "Production Analysis",
+            "Predictive Analytics",
+            "Inventory Analysis",
+            "Risk Register",
+        ],
+        "🎯 DECISION SUPPORT": [
+            "Recommendations",
+            "Memory",
+            "AI Copilot",
+        ],
+        "⚙️ SYSTEM": [
+            "Audit Trail",
+            "Settings",
+        ],
+        "🚧 COMING SOON": [
+            "Multi-Agent Collaboration",
+            "AI Factory OS (Phase 5)",
+        ],
+    },
+}
 
 def _log_local(user: str, action: str) -> None:
     st.session_state.setdefault("activity_logs", []).insert(
