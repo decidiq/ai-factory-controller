@@ -290,3 +290,40 @@ def risk_table(risk: pd.DataFrame) -> pd.DataFrame:
     t["Score"] = t["Probability_Val"] * t["Impact_Val"]
     t["Level"] = np.select([t["Score"] >= 6, t["Score"] >= 3], ["Tinggi", "Sedang"], "Rendah")
     return t
+
+
+# ==================== STREAMLIT CACHING WRAPPER ====================
+# Setiap halaman panggil summarize() untuk KPI. Tanpa cache, ini dihitung
+# ulang setiap ganti menu (30+ detik). Cache bikin instant.
+
+try:
+    import streamlit as st
+
+    def _hash_dataset(ds):
+        """Hash Dataset berdasarkan label & waktu load."""
+        if ds is None:
+            return "none"
+        try:
+            return f"{ds.report.source_label}|{ds.report.loaded_at}"
+        except Exception:
+            return str(id(ds))
+
+    def _hash_scope(s):
+        """Hash Scope berdasarkan filter aktif."""
+        if s is None:
+            return "none"
+        return f"{s.plant}|{s.line}|{s.start}|{s.end}"
+
+    # Simpan versi asli sebelum di-wrap
+    _summarize_internal = summarize
+
+    @st.cache_data(show_spinner=False, ttl=3600, hash_funcs={
+        Dataset: _hash_dataset,
+        Scope: _hash_scope,
+    })
+    def summarize(ds, scope):  # noqa: F811
+        """Versi cached dari summarize()."""
+        return _summarize_internal(ds, scope)
+
+except ImportError:
+    pass  # Streamlit tidak ada (CLI mode) — pakai versi asli

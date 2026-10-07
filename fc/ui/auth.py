@@ -1,9 +1,4 @@
-"""LOGIN SEMENTARA - tanpa verifikasi password.
-
-PERHATIAN: modul ini BELUM AMAN (password tidak diperiksa, role dipilih sendiri).
-Sesuai keputusan, bagian login & hak akses diperbarui terakhir (BRD bagian 4 dan 13).
-Jangan dipakai untuk data nyata di luar lingkungan uji sampai diganti.
-"""
+"""Login page Decidiq - tanpa verifikasi password (temporary)."""
 from datetime import datetime
 
 import streamlit as st
@@ -60,26 +55,91 @@ def _log_local(user: str, action: str) -> None:
 def require_login() -> None:
     if st.session_state.get("authenticated"):
         return
-    st.markdown("<br><br>", unsafe_allow_html=True)
+
+    # Custom CSS untuk login page
+    st.markdown("""
+    <style>
+    /* Login container */
+    .login-hero {
+        text-align: center;
+        padding: 40px 20px 20px 20px;
+    }
+    .login-brand {
+        font-size: 3rem;
+        font-weight: 900;
+        letter-spacing: -2px;
+        background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 8px;
+    }
+    .login-tagline {
+        font-size: 1rem;
+        color: #6D28D9;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    .login-sub {
+        font-size: 0.85rem;
+        color: #94A3B8;
+        font-style: italic;
+    }
+    .login-card {
+        background: #FFFFFF;
+        border: 1px solid #E9D5FF;
+        border-radius: 18px;
+        padding: 30px;
+        box-shadow: 0 10px 40px rgba(139, 92, 246, 0.15);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
     _, mid, _ = st.columns([1, 1.2, 1])
+
     with mid:
-        st.markdown("## 🔐 Enterprise Login")
-        st.caption("⚠️ Login sementara - belum memverifikasi password. Pilih username & role apa saja.")
-        user = st.text_input("Username", placeholder="mis. admin")
-        st.text_input("Password", type="password",
-                      help="Belum diverifikasi - isi apa saja atau kosongkan")
-        role = st.selectbox("Pilih Role Jabatan", ROLES)
-        if st.button("Masuk ke Sistem", type="primary", use_container_width=True):
-            if user.strip():
-                username = user.strip()
-                st.session_state.update(
-                    authenticated=True, username=username, role=role)
-                _log_local(username, f"Login [{role}]")
-                audit.log_login(username, role)
-                st.rerun()
-            else:
-                st.error("Mohon masukkan username Anda.")
-    st.stop()
+        # Brand hero
+        st.markdown("""
+        <div class="login-hero">
+            <div class="login-brand">Decidiq</div>
+            <div class="login-tagline">Smart Decisions, Delivered.</div>
+            <div class="login-sub">Decision Intelligence Platform</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        with st.container(border=True):
+            st.markdown("#### 🔐 Welcome Back")
+            st.caption("Sign in to your Decidiq account")
+
+            user = st.text_input("Username", placeholder="your.username",
+                                  key="login_user")
+            st.text_input("Password", type="password",
+                          placeholder="••••••••",
+                          help="Belum diverifikasi (temporary login)",
+                          key="login_pass")
+            role = st.selectbox("Pilih Role", ROLES, key="login_role")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            if st.button("Sign In →", type="primary",
+                         use_container_width=True, key="login_btn"):
+                if user.strip():
+                    username = user.strip()
+                    st.session_state.update(
+                        authenticated=True, username=username, role=role)
+                    _log_local(username, f"Login [{role}]")
+                    audit.log_login(username, role)
+                    st.rerun()
+                else:
+                    st.error("Masukkan username Anda.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.caption("⚠️ Login sementara — belum verifikasi password")
+        st.caption("Demo: username apa saja · role pilih bebas")
 
 
 def logout() -> None:

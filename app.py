@@ -37,12 +37,6 @@ except Exception as e:
     st.error(f"Gagal inisialisasi database audit: {e}")
 
 auth.require_login()
-# Muat targets dari DB (bisa diubah via Settings)
-try:
-    from fc.settings import get_targets
-    st.session_state["_targets"] = get_targets()
-except Exception:
-    pass
 
 def _is_demo_path(path: str) -> bool:
     if not path:
@@ -123,30 +117,78 @@ if ds.report.rows_rejected:
 
 # ---------- filter global ----------
 st.sidebar.markdown("---")
-st.sidebar.subheader("🔍 Global Filters")
+st.sidebar.subheader("📅 Periode Analisis")
+
+# Preset periode
+span = ds.date_span()
+if span is not None:
+    lo, hi = span
+    
+    preset = st.sidebar.radio(
+        "Pilih Periode",
+        ["Semua Data", "30 Hari Terakhir", "Bulan Ini", "Bulan Lalu", "Custom"],
+        index=0,
+        label_visibility="collapsed",
+        key="period_preset",
+    )
+    
+    from datetime import date, timedelta
+    today = hi  # Pakai tanggal terakhir data, bukan hari ini
+    
+    if preset == "Semua Data":
+        start, end = lo, hi
+    elif preset == "30 Hari Terakhir":
+        start = max(lo, today - timedelta(days=30))
+        end = hi
+    elif preset == "Bulan Ini":
+        start = max(lo, date(today.year, today.month, 1))
+        end = hi
+    elif preset == "Bulan Lalu":
+        # Bulan lalu
+        first_this_month = date(today.year, today.month, 1)
+        last_month_end = first_this_month - timedelta(days=1)
+        start = max(lo, date(last_month_end.year, last_month_end.month, 1))
+        end = last_month_end
+    else:  # Custom
+        dr = st.sidebar.date_input(
+            "Pilih tanggal",
+            value=(lo, hi),
+            min_value=lo,
+            max_value=hi,
+            key="custom_date",
+        )
+        if isinstance(dr, (tuple, list)) and len(dr) == 2:
+            start, end = dr[0], dr[1]
+        elif isinstance(dr, (tuple, list)) and len(dr) == 1:
+            start = end = dr[0]
+        else:
+            start = end = dr
+    
+    # Tampilkan periode aktif
+    st.sidebar.caption(f"📆 Aktif: **{start}** s/d **{end}**")
+else:
+    start = end = None
+
+# Filter Plant & Line
+st.sidebar.markdown("---")
+st.sidebar.subheader("🏭 Filter Plant & Line")
+
 plants = ds.plants()
 plant = st.sidebar.selectbox("Pilih Plant", ["Semua"] + plants) if plants else "Semua"
 lines = ds.lines(None if plant == "Semua" else plant)
 line = st.sidebar.selectbox("Pilih Lini Produksi", ["Semua"] + lines) if lines else "Semua"
-
-span = ds.date_span()
-if span is not None:
-    lo, hi = span
-    dr = st.sidebar.date_input("Periode Tanggal", value=(lo, hi), min_value=lo, max_value=hi)
-    if isinstance(dr, (tuple, list)) and len(dr) == 2:
-        start, end = dr[0], dr[1]
-    elif isinstance(dr, (tuple, list)) and len(dr) == 1:
-        start = end = dr[0]
-    else:
-        start = end = dr
-else:
-    start = end = None
 
 scope = Scope(
     None if plant == "Semua" else plant,
     None if line == "Semua" else line,
     start, end,
 )
+# Muat targets dari DB — sesuaikan dengan filter tanggal aktif
+try:
+    from fc.settings import get_active_targets
+    st.session_state["_targets"] = get_active_targets(scope)
+except Exception:
+    pass
 
 # ---------- routing ----------
 if menu == "Dashboard":

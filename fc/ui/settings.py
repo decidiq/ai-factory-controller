@@ -1,4 +1,4 @@
-"""Halaman Pengaturan Target KPI — bisa diubah dari UI (BRD 4)."""
+"""Halaman Pengaturan Target KPI — global + per periode (BRD 4)."""
 import datetime
 
 import pandas as pd
@@ -8,41 +8,19 @@ from .. import audit, settings as settings_mgr
 from ..pipeline import Dataset
 
 
-def _render_current_vs_default(setting_key: str, current_val, default_val) -> str:
-    """Bandingkan nilai sekarang vs default."""
-    try:
-        if abs(float(current_val) - float(default_val)) < 1e-9:
-            return "= default"
-        return f"default: {default_val}"
-    except (TypeError, ValueError):
-        return ""
+def _render_global_targets(username: str) -> None:
+    st.markdown("### Target Global (Default)")
+    st.caption("Target ini berlaku untuk semua periode, kecuali di-override oleh Target per Periode.")
 
-
-def render(ds: Dataset, scope) -> None:
-    st.title("⚙️ Pengaturan Target KPI")
-    st.caption(
-        "Ubah target tanpa sentuh kode. Semua perubahan tercatat di audit trail "
-        "dan langsung berlaku ke seluruh aplikasi."
-    )
-
-    # ---- Info user ----
-    username = st.session_state.get("username", "system")
-    st.info(f"👤 Login sebagai: **{username}**")
-
-    # ---- Ambil nilai saat ini & default ----
     current = settings_mgr.get_current_dict()
 
-    # ---- Grouping untuk UI ----
     OPERATIONAL_KEYS = ["target_yield", "target_scrap", "target_oee"]
     COST_KEYS = ["max_cost_per_kg", "utility_share_max", "variance_tolerance_pct"]
     INVENTORY_KEYS = ["slow_moving_days"]
 
     new_values = {}
 
-    # ============ OPERASIONAL ============
-    st.subheader("📊 Target Operasional")
-    st.caption("Target untuk Yield, Scrap, dan OEE — dipakai di Dashboard, Alert, dan Executive Report.")
-
+    st.markdown("**Target Operasional**")
     cols = st.columns(3)
     for i, key in enumerate(OPERATIONAL_KEYS):
         meta = settings_mgr.SETTING_META[key]
@@ -54,18 +32,11 @@ def render(ds: Dataset, scope) -> None:
                 value=float(current.get(key, meta["default"])),
                 step=0.1,
                 help=meta["help"],
-                key=f"input_{key}",
+                key=f"glob_{key}",
             )
             new_values[key] = val
-            if abs(val - meta["default"]) > 1e-9:
-                st.caption(f"⚡ Berbeda dari default ({meta['default']})")
 
-    st.markdown("---")
-
-    # ============ BIAYA ============
-    st.subheader("💰 Target Biaya")
-    st.caption("Batas dan toleransi untuk pengendalian biaya produksi.")
-
+    st.markdown("**Target Biaya**")
     cols = st.columns(3)
     for i, key in enumerate(COST_KEYS):
         meta = settings_mgr.SETTING_META[key]
@@ -78,18 +49,11 @@ def render(ds: Dataset, scope) -> None:
                 value=float(current.get(key, meta["default"])),
                 step=float(step),
                 help=meta["help"],
-                key=f"input_{key}",
+                key=f"glob_{key}",
             )
             new_values[key] = val
-            if abs(val - meta["default"]) > 1e-9:
-                st.caption(f"⚡ Berbeda dari default ({meta['default']})")
 
-    st.markdown("---")
-
-    # ============ INVENTORY ============
-    st.subheader("📦 Target Inventory")
-    st.caption("Threshold untuk klasifikasi slow-moving inventory.")
-
+    st.markdown("**Target Inventory**")
     cols = st.columns(3)
     for i, key in enumerate(INVENTORY_KEYS):
         meta = settings_mgr.SETTING_META[key]
@@ -101,85 +65,183 @@ def render(ds: Dataset, scope) -> None:
                 value=int(current.get(key, meta["default"])),
                 step=1,
                 help=meta["help"],
-                key=f"input_{key}",
+                key=f"glob_{key}",
             )
             new_values[key] = val
-            if abs(val - meta["default"]) > 1e-9:
-                st.caption(f"⚡ Berbeda dari default ({meta['default']})")
 
-    st.markdown("---")
-
-    # ============ AKSI ============
-    st.subheader("💾 Simpan Perubahan")
-
+    st.markdown("")
     col_save, col_reset, col_info = st.columns([1, 1, 2])
 
     with col_save:
-        if st.button("💾 Simpan", type="primary", use_container_width=True):
+        if st.button("Simpan Global", type="primary",
+                     use_container_width=True, key="save_global"):
             changes = settings_mgr.save_targets(new_values, user=username)
             if changes:
-                st.success(f"✅ {len(changes)} perubahan disimpan. Berlaku ke seluruh aplikasi.")
-                with st.expander("Lihat detail perubahan"):
+                st.success(f"{len(changes)} perubahan disimpan.")
+                with st.expander("Lihat detail"):
                     for c in changes:
                         st.markdown(f"- `{c}`")
                 st.rerun()
             else:
-                st.info("Tidak ada perubahan untuk disimpan.")
+                st.info("Tidak ada perubahan.")
 
     with col_reset:
-        if st.button("🔄 Reset ke Default", use_container_width=True):
+        if st.button("Reset ke Default", use_container_width=True,
+                     key="reset_global"):
             settings_mgr.reset_targets(user=username)
-            st.success("✅ Semua target dikembalikan ke default.")
+            st.success("Semua target global dikembalikan ke default.")
             st.rerun()
 
     with col_info:
-        st.caption(
-            "Perubahan langsung dipakai di Dashboard, Alert, Executive Report, "
-            "Recommendation Engine, dan Predictive Analytics."
-        )
+        st.caption("Global target berlaku sebagai default.")
 
-    # ============ PREVIEW DAMPAK ============
-    with st.expander("🔍 Preview — Target Sekarang vs Default"):
-        preview_rows = []
-        for key, meta in settings_mgr.SETTING_META.items():
-            field = settings_mgr.SETTING_TO_FIELD[key]
-            cur_val = current.get(key, meta["default"])
-            default_val = meta["default"]
-            is_changed = abs(cur_val - default_val) > 1e-9
-            preview_rows.append({
-                "Setting": meta["label"],
-                "Nilai Sekarang": cur_val,
-                "Default": default_val,
-                "Status": "⚡ Diubah" if is_changed else "✅ Default",
-            })
-        st.dataframe(pd.DataFrame(preview_rows), use_container_width=True, hide_index=True)
+
+def _render_period_targets(username: str) -> None:
+    st.markdown("### Target per Periode")
+    st.caption("Definisikan target spesifik untuk range bulan tertentu.")
+
+    periods = settings_mgr.list_target_periods()
+
+    if periods:
+        st.markdown("**Target Periode Aktif:**")
+        for p in periods:
+            _render_period_card(p, username)
+    else:
+        st.info("Belum ada target periode. Tambahkan di bawah.")
 
     st.markdown("---")
+    st.markdown("**Tambah Target Periode Baru**")
 
-    # ============ RIWAYAT ============
-    st.subheader("📜 Riwayat Perubahan Target")
-    st.caption("Setiap perubahan tercatat permanen di audit trail.")
+    col1, col2 = st.columns(2)
 
-    history = settings_mgr.get_settings_history(limit=20)
+    bulan_options = [f"2026-{m:02d}" for m in range(1, 13)] + \
+                     [f"2027-{m:02d}" for m in range(1, 13)]
 
-    if not history:
-        st.info("Belum ada perubahan. Semua nilai masih default.")
+    with col1:
+        period_start = st.selectbox("Dari Bulan", bulan_options, index=0,
+                                     key="new_period_start")
+    with col2:
+        period_end = st.selectbox("Sampai Bulan", bulan_options, index=2,
+                                   key="new_period_end")
+
+    if period_start > period_end:
+        st.error("'Dari Bulan' harus lebih kecil atau sama dengan 'Sampai Bulan'.")
         return
 
+    st.markdown("**Target untuk Periode Ini:**")
+
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        val_yield = st.number_input("Target Yield (%)", 0.0, 100.0, 98.0, 0.1,
+                                     key="new_period_yield")
+    with col_b:
+        val_scrap = st.number_input("Target Scrap (%)", 0.0, 100.0, 2.0, 0.1,
+                                     key="new_period_scrap")
+    with col_c:
+        val_oee = st.number_input("Target OEE (%)", 0.0, 100.0, 85.0, 0.1,
+                                   key="new_period_oee")
+
+    col_d, col_e = st.columns(2)
+    with col_d:
+        val_cost = st.number_input("Max Cost/Kg (Rp)", 0.0, 1e9, 12500.0, 500.0,
+                                    key="new_period_cost")
+    with col_e:
+        reason = st.text_input("Alasan (opsional)",
+                                placeholder="mis. Q1 2026",
+                                key="new_period_reason")
+
+    if st.button("Simpan Target Periode", type="primary", key="save_period"):
+        values = {
+            "target_yield": val_yield,
+            "target_scrap": val_scrap,
+            "target_oee": val_oee,
+            "max_cost_per_kg": val_cost,
+        }
+        try:
+            settings_mgr.save_target_period(
+                period_start=period_start,
+                period_end=period_end,
+                values=values,
+                user=username,
+                reason=reason,
+            )
+            st.success(f"Target periode {period_start} - {period_end} disimpan.")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Gagal menyimpan: {e}")
+
+
+def _render_period_card(p: dict, username: str) -> None:
+    with st.container(border=True):
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown(f"**{p['period_start']} s/d {p['period_end']}**")
+            if p.get("reason"):
+                st.caption(f"Alasan: {p['reason']}")
+            if p.get("created_by"):
+                st.caption(f"Dibuat oleh: {p['created_by']} - {p.get('created_at', '')}")
+        with col2:
+            if st.button("Hapus", key=f"del_{p['period_start']}_{p['period_end']}"):
+                settings_mgr.delete_target_period(
+                    p["period_start"], p["period_end"], user=username)
+                st.rerun()
+
+        params = p.get("parameters", {})
+        if params:
+            cols = st.columns(min(len(params), 4))
+            for i, (k, v) in enumerate(params.items()):
+                meta = settings_mgr.SETTING_META.get(k, {})
+                label = meta.get("label", k)
+                unit = meta.get("unit", "")
+                with cols[i % len(cols)]:
+                    if unit == "Rp":
+                        st.metric(label, f"Rp {v:,.0f}")
+                    elif unit == "%":
+                        st.metric(label, f"{v:.1f}%")
+                    else:
+                        st.metric(label, f"{v}")
+
+
+def _render_history() -> None:
+    st.markdown("### Riwayat Perubahan Target")
+    history = settings_mgr.get_settings_history(limit=20)
+    if not history:
+        st.info("Belum ada perubahan target.")
+        return
     rows = []
     for h in history:
         try:
             import json as _json
             details = _json.loads(h.get("details", "{}"))
             changes_list = details.get("changes", [])
-            changes_str = " · ".join(changes_list) if changes_list else "-"
+            changes_str = " - ".join(changes_list) if changes_list else "-"
         except Exception:
             changes_str = "-"
-
         rows.append({
             "Waktu": h.get("timestamp", ""),
             "User": h.get("user", ""),
+            "Aksi": h.get("action", ""),
             "Perubahan": changes_str,
         })
-
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+
+def render(ds: Dataset, scope) -> None:
+    st.title("Pengaturan Target KPI")
+    st.caption("Ubah target tanpa sentuh kode. Semua perubahan tercatat di audit trail.")
+
+    username = st.session_state.get("username", "system")
+    st.info(f"Login sebagai: {username}")
+
+    tab1, tab2, tab3 = st.tabs([
+        "Target Global",
+        "Target per Periode",
+        "Riwayat",
+    ])
+
+    with tab1:
+        _render_global_targets(username)
+    with tab2:
+        _render_period_targets(username)
+    with tab3:
+        _render_history()
