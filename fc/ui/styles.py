@@ -3,6 +3,24 @@ import streamlit as st
 
 CSS = """
 <style>
+/* ============================================
+   FORCE OVERRIDE STREAMLIT THEME VARIABLES
+   ============================================ */
+:root {
+    --primary-color: #8B5CF6;
+    --secondary-background-color: #FFFFFF;
+    --background-color: #FAFAFA;
+    --text-color: #0F172A;
+}
+
+[data-testid="stSidebar"],
+section[data-testid="stSidebar"] {
+    --secondary-background-color: #4C1D95 !important;
+    --text-color: #FFFFFF !important;
+    --background-color: #1E1B4B !important;
+    --primary-color: #8B5CF6 !important;
+}
+
 /* === RESET === */
 * { box-sizing: border-box; }
 .stApp {
@@ -12,16 +30,13 @@ CSS = """
 }
 
 /* ============================================
-   SIDEBAR — AGRESSIVE STYLING
+   SIDEBAR BACKGROUND
    ============================================ */
-
-/* Force sidebar background */
 section[data-testid="stSidebar"],
 [data-testid="stSidebar"],
-[data-testid="stSidebar"] > div,
-[data-testid="stSidebar"] > div > div {
+[data-testid="stSidebar"] > div {
     background: linear-gradient(180deg, #1E1B4B 0%, #312E81 100%) !important;
-    color: #E9D5FF !important;
+    color: #FFFFFF !important;
 }
 
 [data-testid="stSidebar"] {
@@ -29,93 +44,108 @@ section[data-testid="stSidebar"],
     max-width: 280px !important;
 }
 
-/* Sidebar text colors */
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] h3,
-[data-testid="stSidebar"] h4,
-[data-testid="stSidebar"] h5,
-[data-testid="stSidebar"] .stMarkdown,
-[data-testid="stSidebar"] .stMarkdown p {
+[data-testid="stSidebar"] h4 {
     color: #FFFFFF !important;
 }
 
-/* ============================================
-   SIDEBAR BUTTONS — FORCE COLORS
-   ============================================ */
-
-/* Base button styling - all buttons in sidebar */
-[data-testid="stSidebar"] button,
-[data-testid="stSidebar"] .stButton button,
-section[data-testid="stSidebar"] .stButton button {
-    background-color: rgba(139, 92, 246, 0.20) !important;
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label {
     color: #E9D5FF !important;
-    border: 1px solid rgba(139, 92, 246, 0.35) !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    font-weight: 500 !important;
-    font-size: 0.85rem !important;
-    padding: 8px 14px !important;
-    border-radius: 8px !important;
-    margin-bottom: 3px !important;
-    transition: all 0.15s ease !important;
-    min-height: 36px !important;
-    height: auto !important;
 }
 
-/* Force text inside button — semua tag */
-[data-testid="stSidebar"] button *,
-[data-testid="stSidebar"] button p,
-[data-testid="stSidebar"] button span,
-[data-testid="stSidebar"] button div,
-[data-testid="stSidebar"] button label {
-    color: #E9D5FF !important;
+/* ============================================
+   SIDEBAR BUTTONS — NUCLEAR FIX
+   ============================================ */
+
+/* Target semua button di sidebar dengan multiple selectors */
+[data-testid="stSidebar"] .stButton > button,
+[data-testid="stSidebar"] .stButton > button[kind="secondary"],
+[data-testid="stSidebar"] .stButton > button[kind="primary"],
+[data-testid="stSidebar"] [data-testid="stButton"] > button,
+[data-testid="stSidebar"] [data-testid="baseButton-secondary"],
+[data-testid="stSidebar"] [data-testid="baseButton-primary"],
+section[data-testid="stSidebar"] button {
+    /* FORCE solid color, not rgba */
+    background-color: #4C1D95 !important;
+    background: #4C1D95 !important;
+    background-image: none !important;
+    color: #FFFFFF !important;
+    border: 1px solid #7C3AED !important;
     text-align: left !important;
-    font-weight: 500 !important;
+    justify-content: flex-start !important;
+    padding: 10px 16px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    min-height: 42px !important;
+    height: auto !important;
+    width: 100% !important;
+    margin-bottom: 4px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.15s ease !important;
 }
 
 /* Hover state */
+[data-testid="stSidebar"] .stButton > button:hover,
 [data-testid="stSidebar"] button:hover {
-    background-color: rgba(139, 92, 246, 0.40) !important;
-    border-color: #8B5CF6 !important;
-}
-[data-testid="stSidebar"] button:hover *,
-[data-testid="stSidebar"] button:hover p,
-[data-testid="stSidebar"] button:hover span,
-[data-testid="stSidebar"] button:hover div {
-    color: #FFFFFF !important;
+    background-color: #6D28D9 !important;
+    background: #6D28D9 !important;
+    border-color: #A78BFA !important;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4) !important;
 }
 
-/* Active button (primary) — bright purple gradient */
-[data-testid="stSidebar"] button[kind="primary"],
+/* Active button (primary) — bright gradient */
+[data-testid="stSidebar"] .stButton > button[kind="primary"],
+[data-testid="stSidebar"] [data-testid="baseButton-primary"],
 section[data-testid="stSidebar"] button[kind="primary"] {
     background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%) !important;
+    background-color: #8B5CF6 !important;
+    background-image: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%) !important;
     border: none !important;
     box-shadow: 0 4px 12px rgba(139, 92, 246, 0.5) !important;
 }
-[data-testid="stSidebar"] button[kind="primary"] *,
-[data-testid="stSidebar"] button[kind="primary"] p,
-[data-testid="stSidebar"] button[kind="primary"] span,
-[data-testid="stSidebar"] button[kind="primary"] div {
+
+/* Force ALL text inside buttons — level terdalam */
+[data-testid="stSidebar"] .stButton > button *,
+[data-testid="stSidebar"] .stButton > button p,
+[data-testid="stSidebar"] .stButton > button span,
+[data-testid="stSidebar"] .stButton > button div,
+[data-testid="stSidebar"] .stButton > button label,
+[data-testid="stSidebar"] .stButton > button [data-testid="stMarkdownContainer"],
+[data-testid="stSidebar"] .stButton > button [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] button *,
+[data-testid="stSidebar"] button p {
     color: #FFFFFF !important;
-    font-weight: 700 !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    font-weight: 600 !important;
+    text-align: left !important;
+    text-shadow: none !important;
+    opacity: 1 !important;
 }
 
 /* ============================================
-   SIDEBAR EXPANDER (KATEGORI MENU)
+   SIDEBAR EXPANDER
    ============================================ */
-
 [data-testid="stSidebar"] [data-testid="stExpander"],
 [data-testid="stSidebar"] details {
+    background: transparent !important;
     background-color: transparent !important;
     border: none !important;
     border-radius: 0 !important;
     margin: 0 !important;
+    padding: 0 !important;
 }
 
-[data-testid="stSidebar"] [data-testid="stExpander"] details > summary,
 [data-testid="stSidebar"] details > summary {
-    background-color: rgba(139, 92, 246, 0.25) !important;
+    background: #4C1D95 !important;
+    background-color: #4C1D95 !important;
+    background-image: none !important;
     color: #FFFFFF !important;
     font-size: 0.72rem !important;
     font-weight: 700 !important;
@@ -126,62 +156,59 @@ section[data-testid="stSidebar"] button[kind="primary"] {
     border-left: 3px solid #A78BFA !important;
     cursor: pointer !important;
     margin-bottom: 6px !important;
-    transition: all 0.15s ease !important;
     list-style: none !important;
 }
 
 [data-testid="stSidebar"] details > summary:hover {
-    background-color: rgba(139, 92, 246, 0.45) !important;
+    background: #6D28D9 !important;
+    background-color: #6D28D9 !important;
     border-left-color: #EC4899 !important;
 }
 
-/* Force summary text — multi-layer */
 [data-testid="stSidebar"] details > summary *,
 [data-testid="stSidebar"] details > summary p,
 [data-testid="stSidebar"] details > summary span,
-[data-testid="stSidebar"] details > summary div,
 [data-testid="stSidebar"] details > summary svg {
     color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
     fill: #FFFFFF !important;
+    background: transparent !important;
     font-weight: 700 !important;
 }
 
-/* Expander content — background gelap agar tidak putih */
+/* Expander content — dark background */
 [data-testid="stSidebar"] details > div,
 [data-testid="stSidebar"] [data-testid="stExpanderDetails"] {
-    background-color: rgba(15, 23, 42, 0.4) !important;
+    background: #1E1B4B !important;
+    background-color: #1E1B4B !important;
     border-radius: 8px !important;
     padding: 8px !important;
     margin-bottom: 8px !important;
+    border: none !important;
 }
 
 /* ============================================
    SIDEBAR INPUT / SELECT
    ============================================ */
-
 [data-testid="stSidebar"] input,
-[data-testid="stSidebar"] select,
-[data-testid="stSidebar"] textarea,
-[data-testid="stSidebar"] [data-baseweb="select"] > div {
-    background-color: #FFFFFF !important;
+[data-testid="stSidebar"] textarea {
+    background: #FFFFFF !important;
     color: #0F172A !important;
     border: 1px solid #C4B5FD !important;
 }
 
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
-    color: #E9D5FF !important;
-    font-weight: 500 !important;
+[data-testid="stSidebar"] [data-baseweb="select"] > div {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #C4B5FD !important;
 }
 
-/* Sidebar caption kecil */
-[data-testid="stSidebar"] .stCaption,
-[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p,
+[data-testid="stSidebar"] .stCaption {
     color: #A78BFA !important;
     font-size: 0.75rem !important;
 }
 
-/* Sidebar divider */
 [data-testid="stSidebar"] hr {
     border: none !important;
     border-top: 1px solid rgba(139, 92, 246, 0.3) !important;
@@ -189,9 +216,8 @@ section[data-testid="stSidebar"] button[kind="primary"] {
 }
 
 /* ============================================
-   MAIN CONTENT (di luar sidebar)
+   MAIN CONTENT
    ============================================ */
-
 h1 {
     color: #0F172A;
     font-weight: 800;
@@ -201,10 +227,9 @@ h1 {
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
-h2, h3 { color: #1E1B4B; font-weight: 700; letter-spacing: -0.5px; }
+h2, h3 { color: #1E1B4B; font-weight: 700; }
 h4, h5 { color: #334155; font-weight: 600; }
 
-/* === METRIC CARDS === */
 div[data-testid="stMetric"] {
     background: #FFFFFF;
     border: 1px solid #E9D5FF;
@@ -222,17 +247,14 @@ div[data-testid="stMetric"] label {
     color: #6D28D9 !important;
     font-weight: 600 !important;
     font-size: 0.75rem !important;
-    letter-spacing: 0.6px;
     text-transform: uppercase;
 }
 div[data-testid="stMetric"] [data-testid="stMetricValue"] {
     color: #0F172A !important;
     font-weight: 800 !important;
     font-size: 1.8rem !important;
-    letter-spacing: -0.5px;
 }
 
-/* === CONTAINER / CARDS (main content) === */
 .main div[data-testid="stVerticalBlockBorderWrapper"] {
     background: #FFFFFF;
     border: 1px solid #E9D5FF !important;
@@ -240,7 +262,6 @@ div[data-testid="stMetric"] [data-testid="stMetricValue"] {
     padding: 20px !important;
 }
 
-/* === MAIN BUTTONS === */
 .main button[kind="primary"] {
     background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
     color: #FFFFFF;
@@ -256,28 +277,21 @@ div[data-testid="stMetric"] [data-testid="stMetricValue"] {
     font-weight: 600;
 }
 
-/* === ALERTS === */
 div[data-testid="stAlert"] {
     border-radius: 12px;
     border: none;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
-/* === TABS === */
 button[data-baseweb="tab"] {
     font-weight: 600;
     color: #6D28D9;
 }
-button[data-baseweb="tab"][aria-selected="true"] {
-    color: #4C1D95;
-}
 div[data-baseweb="tab-highlight"] {
     background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
     height: 3px;
-    border-radius: 2px;
 }
 
-/* === DATAFRAME === */
 div[data-testid="stDataFrame"] {
     border-radius: 12px;
     overflow: hidden;
@@ -291,7 +305,6 @@ div[data-testid="stDataFrame"] thead tr th {
     font-size: 0.7rem !important;
 }
 
-/* === DIVIDER === */
 .main hr {
     border: none;
     height: 1px;
@@ -299,7 +312,6 @@ div[data-testid="stDataFrame"] thead tr th {
     margin: 24px 0;
 }
 
-/* === SCROLLBAR === */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #F5F3FF; }
 ::-webkit-scrollbar-thumb {
@@ -307,11 +319,9 @@ div[data-testid="stDataFrame"] thead tr th {
     border-radius: 4px;
 }
 
-/* === HIDE STREAMLIT MENU === */
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
 
-/* === MAIN CONTAINER === */
 .block-container {
     padding-top: 2rem;
     padding-bottom: 3rem;
