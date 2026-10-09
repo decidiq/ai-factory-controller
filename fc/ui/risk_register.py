@@ -1,4 +1,4 @@
-"""Risk Register - data-driven dengan heat map (BRD 5.4 & 6)."""
+"""Risk Register - data-driven dengan heat map (BRD 5.4 & 6) — Premium UI."""
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -8,8 +8,182 @@ from ..pipeline import Dataset
 from .charts import COLORS, apply_theme
 
 
+# ==================== CSS GLASSMORPHISM ====================
+GLASS_CSS = """
+<style>
+.rr-glass {
+    position: relative;
+    background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
+    border: 1px solid rgba(196, 181, 253, 0.5);
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    min-height: 100px;
+    margin-bottom: 8px;
+}
+.rr-glass::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent, #8B5CF6) 0%, #EC4899 100%);
+}
+.rr-glass:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 32px rgba(139, 92, 246, 0.18);
+    border-color: rgba(139, 92, 246, 0.6);
+}
+.rr-glass-label {
+    color: #6D28D9;
+    font-weight: 700;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 6px;
+}
+.rr-glass-value {
+    color: #0F172A;
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+.rr-glass-note {
+    color: #94A3B8;
+    font-size: 0.68rem;
+    font-style: italic;
+    line-height: 1.3;
+}
+.rr-glass-delta {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+/* Risk Level Banner */
+.rr-banner {
+    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
+    border-radius: 16px;
+    padding: 20px 26px;
+    color: white;
+    box-shadow: 0 12px 32px rgba(30, 27, 75, 0.25);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.rr-banner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #EF4444 0%, #F59E0B 50%, #10B981 100%);
+}
+.rr-block { flex: 1; min-width: 160px; }
+.rr-block-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.rr-block-value {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #FFFFFF;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    margin-bottom: 2px;
+}
+.rr-block-sub {
+    font-size: 0.75rem;
+    color: #94A3B8;
+}
+
+/* Risk Card */
+.rr-risk-card {
+    background: #FFFFFF;
+    border: 1px solid #E9D5FF;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.05);
+    position: relative;
+    transition: transform 0.15s ease;
+}
+.rr-risk-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.12);
+}
+.rr-risk-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1E1B4B;
+    margin-bottom: 6px;
+}
+.rr-risk-meta {
+    font-size: 0.82rem;
+    color: #64748B;
+}
+.rr-risk-score {
+    padding: 10px 18px;
+    border-radius: 10px;
+    text-align: center;
+    min-width: 100px;
+}
+.rr-risk-score-label {
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+}
+.rr-risk-score-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    line-height: 1;
+    margin: 2px 0;
+}
+.rr-risk-score-level {
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+</style>
+"""
+
+
+def _inject_css():
+    st.markdown(GLASS_CSS, unsafe_allow_html=True)
+
+
+# ==================== HELPERS ====================
+def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
+                note: str = None, delta: str = None,
+                delta_color: str = None) -> None:
+    note_html = f'<div class="rr-glass-note">{note}</div>' if note else ""
+    delta_html = ""
+    if delta:
+        c = delta_color or "#10B981"
+        delta_html = f'<div class="rr-glass-delta" style="color:{c};">{delta}</div>'
+    html = (
+        f'<div class="rr-glass" style="--accent: {accent};">'
+        f'<div class="rr-glass-label">{label}</div>'
+        f'<div class="rr-glass-value">{value}</div>'
+        f'{delta_html}'
+        f'{note_html}'
+        f'</div>'
+    )
+    col.markdown(html, unsafe_allow_html=True)
+
+
+# ==================== KPI CARDS ====================
 def _render_kpi(tbl):
-    """4 KPI cards untuk Risk."""
     st.markdown("### 🛡️ Ringkasan Risiko")
 
     total = len(tbl)
@@ -18,38 +192,82 @@ def _render_kpi(tbl):
     low = int((tbl["Level"] == "Rendah").sum())
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Risiko", f"{total}")
-    c2.metric("🔴 Tinggi (≥6)", f"{high}",
-              delta="Perlu aksi" if high > 0 else "Aman",
-              delta_color="inverse" if high > 0 else "off")
-    c3.metric("🟡 Sedang (3-5)", f"{medium}")
-    c4.metric("🟢 Rendah (<3)", f"{low}")
+    _glass_card(c1, "Total Risiko", str(total), "#8B5CF6",
+                note="Terdaftar dalam register")
+    _glass_card(c2, "🔴 Tinggi (≥6)", str(high), "#EF4444",
+                delta=("Perlu aksi segera" if high > 0 else "Aman"),
+                delta_color=("#EF4444" if high > 0 else "#10B981"))
+    _glass_card(c3, "🟡 Sedang (3-5)", str(medium), "#F59E0B",
+                note="Pantau berkala")
+    _glass_card(c4, "🟢 Rendah (<3)", str(low), "#10B981",
+                note="Terkendali")
+
+    # Banner distribusi
+    if high > 0:
+        html = (
+            f'<div class="rr-banner">'
+            f'<div class="rr-block">'
+            f'<div class="rr-block-label" style="color:#F87171;">🔴 RISIKO TINGGI</div>'
+            f'<div class="rr-block-value">{high}</div>'
+            f'<div class="rr-block-sub">Perlu tindakan segera</div>'
+            f'</div>'
+            f'<div class="rr-block">'
+            f'<div class="rr-block-label" style="color:#FBBF24;">🟡 RISIKO SEDANG</div>'
+            f'<div class="rr-block-value">{medium}</div>'
+            f'<div class="rr-block-sub">Pantau berkala</div>'
+            f'</div>'
+            f'<div class="rr-block">'
+            f'<div class="rr-block-label" style="color:#34D399;">🟢 RISIKO RENDAH</div>'
+            f'<div class="rr-block-value">{low}</div>'
+            f'<div class="rr-block-sub">Terkendali</div>'
+            f'</div>'
+            f'</div>'
+        )
+        st.markdown(html, unsafe_allow_html=True)
+    else:
+        html = (
+            f'<div class="rr-banner">'
+            f'<div class="rr-block">'
+            f'<div class="rr-block-label" style="color:#34D399;">✅ STATUS RISIKO</div>'
+            f'<div class="rr-block-value">Terkendali</div>'
+            f'<div class="rr-block-sub">Tidak ada risiko level tinggi</div>'
+            f'</div>'
+            f'<div class="rr-block">'
+            f'<div class="rr-block-label" style="color:#FBBF24;">🟡 SEDANG</div>'
+            f'<div class="rr-block-value">{medium}</div>'
+            f'<div class="rr-block-sub">Pantau berkala</div>'
+            f'</div>'
+            f'<div class="rr-block">'
+            f'<div class="rr-block-label" style="color:#34D399;">🟢 RENDAH</div>'
+            f'<div class="rr-block-value">{low}</div>'
+            f'<div class="rr-block-sub">Terkendali</div>'
+            f'</div>'
+            f'</div>'
+        )
+        st.markdown(html, unsafe_allow_html=True)
 
 
+# ==================== HEATMAP ====================
 def _render_heatmap(tbl):
-    """Heat map Probability × Impact."""
     st.markdown("### 🔥 Heat Map Risiko")
     st.caption("Probabilitas (x) × Dampak (y). Zona merah = prioritas tertinggi.")
 
-    # Buat matrix 3×3 (skala 1-3)
     matrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
     for _, r in tbl.iterrows():
         try:
             p = int(r["Probability_Val"]) - 1
             i = int(r["Impact_Val"]) - 1
             if 0 <= p <= 2 and 0 <= i <= 2:
-                matrix[i][p] += 1  # row = impact, col = probability
+                matrix[i][p] += 1
         except (ValueError, TypeError, KeyError):
             pass
 
-    # Z matrix untuk warna (score = p * i)
     z_score = [
         [1 * 1, 1 * 2, 1 * 3],
         [2 * 1, 2 * 2, 2 * 3],
         [3 * 1, 3 * 2, 3 * 3],
     ]
 
-    # Text = jumlah risiko di cell itu
     text = [[str(v) if v > 0 else "" for v in row] for row in matrix]
 
     fig = go.Figure(go.Heatmap(
@@ -57,10 +275,10 @@ def _render_heatmap(tbl):
         x=["Low (1)", "Medium (2)", "High (3)"],
         y=["Low (1)", "Medium (2)", "High (3)"],
         colorscale=[
-            [0.0, "#10B981"],   # score 1 - green
-            [0.33, "#F59E0B"],  # score 4 - yellow
-            [0.66, "#EF4444"],  # score 6 - red
-            [1.0, "#991B1B"],   # score 9 - dark red
+            [0.0, "#10B981"],
+            [0.33, "#F59E0B"],
+            [0.66, "#EF4444"],
+            [1.0, "#991B1B"],
         ],
         text=text,
         texttemplate="<b>%{text}</b>",
@@ -78,8 +296,7 @@ def _render_heatmap(tbl):
     fig.update_layout(
         xaxis=dict(
             title=dict(text="<b>Probability</b>", font=dict(size=13)),
-            tickfont=dict(size=12),
-            side="bottom",
+            tickfont=dict(size=12), side="bottom",
         ),
         yaxis=dict(
             title=dict(text="<b>Impact</b>", font=dict(size=13)),
@@ -90,12 +307,11 @@ def _render_heatmap(tbl):
     st.plotly_chart(fig, use_container_width=True)
 
 
+# ==================== RISK LIST ====================
 def _render_risk_list(tbl):
-    """Risk list dengan cards berwarna."""
     st.markdown("### 📋 Daftar Risiko")
     st.caption("Diurutkan berdasarkan skor (Probability × Impact).")
 
-    # Sort by Score
     tbl_sorted = tbl.sort_values("Score", ascending=False).reset_index(drop=True)
 
     for _, r in tbl_sorted.iterrows():
@@ -109,60 +325,35 @@ def _render_risk_list(tbl):
         }
         style = color_map.get(level, color_map["Rendah"])
 
-        # Get optional fields
         risk_name = str(r.get("Risk", "—"))
         status = str(r.get("Status", "—"))
+        p_val = int(r["Probability_Val"])
+        i_val = int(r["Impact_Val"])
 
-        st.markdown(f"""
-        <div style="
-            background: #FFFFFF;
-            border: 1px solid #E9D5FF;
-            border-left: 5px solid {style['border']};
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 6px rgba(139, 92, 246, 0.05);
-        ">
-            <div style="display: flex; justify-content: space-between; align-items: start;">
-                <div style="flex: 1;">
-                    <div style="
-                        font-size: 1rem;
-                        font-weight: 700;
-                        color: #1E1B4B;
-                        margin-bottom: 6px;
-                    ">{style['icon']} {risk_name}</div>
-                    <div style="font-size: 0.85rem; color: #64748B;">
-                        <strong>Status:</strong> {status} ·
-                        <strong>Probability:</strong> {int(r['Probability_Val'])} ·
-                        <strong>Impact:</strong> {int(r['Impact_Val'])}
-                    </div>
-                </div>
-                <div style="
-                    background: {style['bg']};
-                    color: {style['border']};
-                    padding: 10px 18px;
-                    border-radius: 10px;
-                    text-align: center;
-                    min-width: 100px;
-                    margin-left: 16px;
-                ">
-                    <div style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.8px;">
-                        SCORE
-                    </div>
-                    <div style="font-size: 1.6rem; font-weight: 800; letter-spacing: -0.8px; line-height: 1;">
-                        {score}
-                    </div>
-                    <div style="font-size: 0.75rem; font-weight: 600; margin-top: 2px;">
-                        {level}
-                    </div>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        html = (
+            f'<div class="rr-risk-card" style="border-left: 5px solid {style["border"]};">'
+            f'<div style="display:flex; justify-content:space-between; align-items:start;">'
+            f'<div style="flex:1;">'
+            f'<div class="rr-risk-name">{style["icon"]} {risk_name}</div>'
+            f'<div class="rr-risk-meta">'
+            f'<strong>Status:</strong> {status} · '
+            f'<strong>Probability:</strong> {p_val} · '
+            f'<strong>Impact:</strong> {i_val}'
+            f'</div>'
+            f'</div>'
+            f'<div class="rr-risk-score" style="background:{style["bg"]}; color:{style["border"]}; margin-left:16px;">'
+            f'<div class="rr-risk-score-label">SCORE</div>'
+            f'<div class="rr-risk-score-value">{score}</div>'
+            f'<div class="rr-risk-score-level">{level}</div>'
+            f'</div>'
+            f'</div>'
+            f'</div>'
+        )
+        st.markdown(html, unsafe_allow_html=True)
 
 
+# ==================== ACTION PLAN ====================
 def _render_action_plan(tbl):
-    """Action plan untuk risiko tinggi."""
     st.markdown("---")
     st.markdown("### 💡 Action Plan")
 
@@ -187,7 +378,10 @@ def _render_action_plan(tbl):
                 st.caption(f"Teks asli: Impact = {r['Impact']}")
 
 
+# ==================== MAIN ====================
 def render(ds: Dataset, scope) -> None:
+    _inject_css()
+
     st.title("🛡️ Risk Register")
     st.caption("Pemantauan risiko operasional pabrik dengan heat map (BRD 5.4 & 6).")
 
@@ -212,12 +406,12 @@ def render(ds: Dataset, scope) -> None:
 
     tbl = risk_table(risk)
 
-    # 1. KPI cards
+    # 1. KPI cards + Banner
     _render_kpi(tbl)
 
     st.markdown("---")
 
-    # 2. Heat map + Risk list (side by side)
+    # 2. Heat map + Distribusi bar (side by side)
     col_left, col_right = st.columns([1, 1.2])
 
     with col_left:
@@ -252,10 +446,11 @@ def render(ds: Dataset, scope) -> None:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        # Stats kecil
         c1, c2 = st.columns(2)
-        c1.metric("Rata-rata Score", f"{tbl['Score'].mean():.1f}")
-        c2.metric("Max Score", f"{int(tbl['Score'].max())}")
+        _glass_card(c1, "Rata-rata Score", f"{tbl['Score'].mean():.1f}",
+                    "#8B5CF6", note="Skor rata-rata seluruh risiko")
+        _glass_card(c2, "Max Score", f"{int(tbl['Score'].max())}",
+                    "#EF4444", note="Skor tertinggi terdeteksi")
 
     st.markdown("---")
 

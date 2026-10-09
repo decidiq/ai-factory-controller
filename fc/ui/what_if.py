@@ -7,6 +7,97 @@ from ..kpi import Scope, cogm_for_scope, scope_production
 from ..pipeline import Dataset
 
 
+# ==================== CSS GLASSMORPHISM ====================
+GLASS_CSS = """
+<style>
+.wi-glass {
+    position: relative;
+    background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
+    border: 1px solid rgba(196, 181, 253, 0.5);
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    min-height: 100px;
+    margin-bottom: 8px;
+}
+.wi-glass::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent, #8B5CF6) 0%, #EC4899 100%);
+}
+.wi-glass:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 32px rgba(139, 92, 246, 0.18);
+    border-color: rgba(139, 92, 246, 0.6);
+}
+.wi-glass-label {
+    color: #6D28D9;
+    font-weight: 700;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 6px;
+}
+.wi-glass-value {
+    color: #0F172A;
+    font-weight: 800;
+    font-size: 1.4rem;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+.wi-glass-note {
+    color: #94A3B8;
+    font-size: 0.68rem;
+    font-style: italic;
+    line-height: 1.3;
+}
+.wi-glass-delta {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+</style>
+"""
+
+
+def _inject_css():
+    st.markdown(GLASS_CSS, unsafe_allow_html=True)
+
+
+def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
+                note: str = None, delta: str = None,
+                delta_color: str = None) -> None:
+    note_html = f'<div class="wi-glass-note">{note}</div>' if note else ""
+    delta_html = ""
+    if delta:
+        c = delta_color or "#10B981"
+        delta_html = f'<div class="wi-glass-delta" style="color:{c};">{delta}</div>'
+    html = (
+        f'<div class="wi-glass" style="--accent: {accent};">'
+        f'<div class="wi-glass-label">{label}</div>'
+        f'<div class="wi-glass-value">{value}</div>'
+        f'{delta_html}'
+        f'{note_html}'
+        f'</div>'
+    )
+    col.markdown(html, unsafe_allow_html=True)
+
+
+def _fmt_rp(v: float) -> str:
+    """Format Rupiah singkat."""
+    if abs(v) >= 1_000_000_000:
+        return f"Rp {v/1_000_000_000:.2f} M"
+    if abs(v) >= 1_000_000:
+        return f"Rp {v/1_000_000:.1f} jt"
+    return f"Rp {v:,.0f}"
+
+
+# ==================== HEADER ====================
 def _render_header():
     st.markdown("""
     <div style="
@@ -17,46 +108,36 @@ def _render_header():
         box-shadow: 0 10px 30px rgba(139, 92, 246, 0.25);
         margin-bottom: 24px;
     ">
-        <div style="
-            font-size: 0.75rem;
-            letter-spacing: 1.5px;
-            opacity: 0.85;
-            font-weight: 600;
-            margin-bottom: 8px;
-        ">🎛 WHAT-IF SIMULATOR</div>
-        <div style="
-            font-size: 1.7rem;
-            font-weight: 800;
-            letter-spacing: -0.8px;
-            line-height: 1.15;
-        ">Simulasikan skenario bisnis Anda</div>
-        <div style="
-            font-size: 0.9rem;
-            opacity: 0.9;
-            margin-top: 8px;
-        ">Geser slider untuk melihat dampak langsung ke COGM & Cost/Kg.</div>
+        <div style="font-size: 0.75rem; letter-spacing: 1.5px; opacity: 0.85;
+            font-weight: 600; margin-bottom: 8px;">🎛 WHAT-IF SIMULATOR</div>
+        <div style="font-size: 1.7rem; font-weight: 800; letter-spacing: -0.8px;
+            line-height: 1.15;">Simulasikan skenario bisnis Anda</div>
+        <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 8px;">
+            Geser slider untuk melihat dampak langsung ke COGM & Cost/Kg.</div>
     </div>
     """, unsafe_allow_html=True)
 
 
+# ==================== BASELINE ====================
 def _render_baseline(prod, cogm_kpi, material_share):
-    """Card baseline info."""
     baseline_output = float(prod["Output_Kg"].sum()) if len(prod) else 0.0
     baseline_cogm = cogm_kpi.value if cogm_kpi.available else 0
 
     st.markdown("### 📊 Baseline (Current State)")
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("Output Saat Ini", f"{baseline_output:,.0f} Kg")
-    c2.metric("COGM Saat Ini", f"Rp {baseline_cogm:,.0f}")
-    c3.metric("Material Share", f"{material_share*100:.0f}%",
-              help="Porsi biaya material terhadap COGM")
+    _glass_card(c1, "Output Saat Ini", f"{baseline_output:,.0f} Kg",
+                "#8B5CF6", note="Total output terfilter")
+    _glass_card(c2, "COGM Saat Ini", f"Rp {baseline_cogm:,.0f}",
+                "#EC4899", note="Cost of Goods Manufactured")
+    _glass_card(c3, "Material Share", f"{material_share*100:.0f}%",
+                "#F59E0B", note="Porsi biaya material dari COGM")
 
     return baseline_output, baseline_cogm
 
 
+# ==================== SLIDERS ====================
 def _render_slider_panel():
-    """Panel slider skenario."""
     st.markdown("### 🎚 Parameter Skenario")
     st.caption("Atur nilai untuk simulasi. Hasil berubah secara real-time.")
 
@@ -98,34 +179,25 @@ def _render_slider_panel():
     )
 
 
+# ==================== RESULT ====================
 def _render_result(result, baseline_output, baseline_cogm):
-    """Hasil simulasi dengan visual premium."""
     st.markdown("### 🎯 Hasil Simulasi")
 
-    # Big impact card
     savings = result.savings_annual
     if savings > 0:
-        impact_color = "#10B981"
         impact_icon = "💚"
         impact_label = "COST SAVING TAHUNAN"
         impact_bg = "linear-gradient(135deg, #10B981 0%, #059669 100%)"
     elif savings < 0:
-        impact_color = "#EF4444"
         impact_icon = "⚠️"
         impact_label = "KENAIKAN BIAYA TAHUNAN"
         impact_bg = "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
     else:
-        impact_color = "#64748B"
         impact_icon = "➖"
         impact_label = "TIDAK ADA PERUBAHAN SIGNIFIKAN"
         impact_bg = "linear-gradient(135deg, #64748B 0%, #475569 100%)"
 
-    if savings >= 1_000_000_000:
-        impact_val = f"Rp {savings/1_000_000_000:.2f} M"
-    elif savings >= 1_000_000:
-        impact_val = f"Rp {abs(savings)/1_000_000:.1f} jt"
-    else:
-        impact_val = f"Rp {abs(savings):,.0f}"
+    impact_val = _fmt_rp(abs(savings)) if savings != 0 else "Rp 0"
 
     st.markdown(f"""
     <div style="
@@ -136,66 +208,44 @@ def _render_result(result, baseline_output, baseline_cogm):
         box-shadow: 0 10px 30px rgba(16, 185, 129, 0.25);
         margin-bottom: 24px;
     ">
-        <div style="
-            font-size: 0.75rem;
-            letter-spacing: 1.5px;
-            opacity: 0.9;
-            font-weight: 600;
-            margin-bottom: 8px;
-        ">{impact_icon} {impact_label}</div>
-        <div style="
-            font-size: 2.6rem;
-            font-weight: 800;
-            letter-spacing: -1.5px;
-            line-height: 1.1;
-        ">{impact_val}</div>
-        <div style="
-            font-size: 0.85rem;
-            opacity: 0.9;
-            margin-top: 8px;
-        ">Asumsi: 12 bulan dengan output yang sama.</div>
+        <div style="font-size: 0.75rem; letter-spacing: 1.5px; opacity: 0.9;
+            font-weight: 600; margin-bottom: 8px;">{impact_icon} {impact_label}</div>
+        <div style="font-size: 2.6rem; font-weight: 800; letter-spacing: -1.5px;
+            line-height: 1.1;">{impact_val}</div>
+        <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 8px;">
+            Asumsi: 12 bulan dengan output yang sama.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Metric comparisons
+    # Metric comparisons (glass)
     st.markdown("#### 📊 Perbandingan Detail")
     c1, c2, c3 = st.columns(3)
 
-    with c1:
-        delta_output = result.output_kg - baseline_output
-        st.metric(
-            "Output Baru",
-            f"{result.output_kg:,.0f} Kg",
-            delta=f"{delta_output:+,.0f} Kg",
-        )
+    delta_output = result.output_kg - baseline_output
+    delta_cogm = result.cogm - baseline_cogm
+    delta_cpk = result.cost_per_kg - result.baseline_cost_per_kg
 
-    with c2:
-        delta_cogm = result.cogm - baseline_cogm
-        st.metric(
-            "COGM Baru",
-            f"Rp {result.cogm:,.0f}",
-            delta=f"Rp {delta_cogm:+,.0f}",
-            delta_color="inverse",
-        )
-
-    with c3:
-        delta_cpk = result.cost_per_kg - result.baseline_cost_per_kg
-        st.metric(
-            "Cost/Kg Baru",
-            f"Rp {result.cost_per_kg:,.0f}",
-            delta=f"Rp {delta_cpk:+,.0f}",
-            delta_color="inverse",
-        )
+    _glass_card(c1, "Output Baru", f"{result.output_kg:,.0f} Kg", "#8B5CF6",
+                delta=f"{delta_output:+,.0f} Kg",
+                delta_color=("#10B981" if delta_output >= 0 else "#EF4444"))
+    _glass_card(c2, "COGM Baru", f"Rp {result.cogm:,.0f}", "#EC4899",
+                delta=f"Rp {delta_cogm:+,.0f}",
+                delta_color=("#EF4444" if delta_cogm > 0 else "#10B981"))
+    _glass_card(c3, "Cost/Kg Baru", f"Rp {result.cost_per_kg:,.0f}", "#F59E0B",
+                delta=f"Rp {delta_cpk:+,.0f}",
+                delta_color=("#EF4444" if delta_cpk > 0 else "#10B981"))
 
     # Additional metrics
     c4, c5, c6 = st.columns(3)
-    c4.metric("Baseline Cost/Kg", f"Rp {result.baseline_cost_per_kg:,.0f}")
-    c5.metric("Δ Cost/Kg", f"Rp {delta_cpk:+,.0f}")
-    c6.metric(
-        "Δ Output",
-        f"{delta_output:+,.0f} Kg",
-        delta=f"{(delta_output/baseline_output*100):+.1f}%" if baseline_output > 0 else "—",
-    )
+    _glass_card(c4, "Baseline Cost/Kg",
+                f"Rp {result.baseline_cost_per_kg:,.0f}", "#94A3B8",
+                note="Kondisi saat ini")
+    _glass_card(c5, "Δ Cost/Kg", f"Rp {delta_cpk:+,.0f}",
+                "#EF4444" if delta_cpk > 0 else "#10B981",
+                note="Perubahan per Kg")
+    pct_out = (delta_output / baseline_output * 100) if baseline_output > 0 else 0
+    _glass_card(c6, "Δ Output", f"{delta_output:+,.0f} Kg",
+                "#3B82F6", note=f"{pct_out:+.1f}% dari baseline")
 
     # Comparison Chart
     st.markdown("#### 📊 Baseline vs Simulasi")
@@ -208,8 +258,9 @@ def _render_result(result, baseline_output, baseline_cogm):
     )
     st.plotly_chart(fig, use_container_width=True)
 
+
+# ==================== SAVE SCENARIO ====================
 def _render_scenario_save(current_scenario, result):
-    """Form simpan skenario."""
     st.markdown("---")
     st.markdown("### 💾 Simpan Skenario")
     st.caption("Simpan kombinasi parameter untuk dibandingkan nanti.")
@@ -242,7 +293,6 @@ def _render_scenario_save(current_scenario, result):
 
 
 def _render_saved_scenarios():
-    """Daftar skenario tersimpan."""
     scenarios = st.session_state.get("what_if_scenarios", [])
     if not scenarios:
         return
@@ -285,11 +335,12 @@ def _render_saved_scenarios():
         st.caption(f"Total {len(scenarios)} skenario tersimpan di sesi ini.")
 
 
+# ==================== MAIN ====================
 def render(ds: Dataset, scope: Scope) -> None:
-    # Header premium
+    _inject_css()
+
     _render_header()
 
-    # Baseline check
     prod = scope_production(ds.production, scope)
     baseline_output = float(prod["Output_Kg"].sum()) if len(prod) else 0.0
     cogm_kpi, breakdown = cogm_for_scope(ds.costs, ds.production, scope)
@@ -301,15 +352,12 @@ def render(ds: Dataset, scope: Scope) -> None:
     baseline_cogm = cogm_kpi.value
     material_share = (breakdown.get("Material", 0) / baseline_cogm) if baseline_cogm else 0.6
 
-    # Baseline
     _, baseline_cogm_val = _render_baseline(prod, cogm_kpi, material_share)
 
     st.markdown("---")
 
-    # Sliders
     scenario = _render_slider_panel()
 
-    # Simulate
     result = simulate(
         baseline_output_kg=baseline_output,
         baseline_cogm=baseline_cogm_val,
@@ -319,15 +367,11 @@ def render(ds: Dataset, scope: Scope) -> None:
 
     st.markdown("---")
 
-    # Results
     _render_result(result, baseline_output, baseline_cogm_val)
 
     st.markdown("---")
 
-    # Save scenario
     _render_scenario_save(scenario, result)
-
-    # Saved scenarios
     _render_saved_scenarios()
 
     st.markdown("---")

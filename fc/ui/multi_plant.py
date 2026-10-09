@@ -1,4 +1,4 @@
-"""Multi-Plant & Cost Allocation - data-driven (BRD 6)."""
+"""Multi-Plant & Cost Allocation - data-driven (BRD 6) — Premium UI."""
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -8,8 +8,142 @@ from ..pipeline import Dataset
 from .charts import CATEGORY_COLORS, COLORS, apply_theme
 
 
+# ==================== CSS GLASSMORPHISM ====================
+GLASS_CSS = """
+<style>
+.mp-glass {
+    position: relative;
+    background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
+    border: 1px solid rgba(196, 181, 253, 0.5);
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    min-height: 100px;
+    margin-bottom: 8px;
+}
+.mp-glass::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent, #8B5CF6) 0%, #EC4899 100%);
+}
+.mp-glass:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 32px rgba(139, 92, 246, 0.18);
+    border-color: rgba(139, 92, 246, 0.6);
+}
+.mp-glass-label {
+    color: #6D28D9;
+    font-weight: 700;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 6px;
+}
+.mp-glass-value {
+    color: #0F172A;
+    font-weight: 800;
+    font-size: 1.45rem;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+.mp-glass-note {
+    color: #94A3B8;
+    font-size: 0.68rem;
+    font-style: italic;
+    line-height: 1.3;
+}
+.mp-glass-delta {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+/* Banner */
+.mp-banner {
+    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
+    border-radius: 16px;
+    padding: 20px 26px;
+    color: white;
+    box-shadow: 0 12px 32px rgba(30, 27, 75, 0.25);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.mp-banner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--b-accent, #10B981) 0%, #EC4899 100%);
+}
+.mp-block { flex: 1; min-width: 160px; }
+.mp-block-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.mp-block-value {
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: #FFFFFF;
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+    margin-bottom: 2px;
+}
+.mp-block-sub {
+    font-size: 0.75rem;
+    color: #94A3B8;
+}
+</style>
+"""
+
+
+def _inject_css():
+    st.markdown(GLASS_CSS, unsafe_allow_html=True)
+
+
+# ==================== HELPERS ====================
+def _fmt_rp(v: float) -> str:
+    if abs(v) >= 1_000_000_000:
+        return f"Rp {v/1_000_000_000:.2f} M"
+    if abs(v) >= 1_000_000:
+        return f"Rp {v/1_000_000:.1f} jt"
+    return f"Rp {v:,.0f}"
+
+
+def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
+                note: str = None, delta: str = None,
+                delta_color: str = None) -> None:
+    note_html = f'<div class="mp-glass-note">{note}</div>' if note else ""
+    delta_html = ""
+    if delta:
+        c = delta_color or "#10B981"
+        delta_html = f'<div class="mp-glass-delta" style="color:{c};">{delta}</div>'
+    html = (
+        f'<div class="mp-glass" style="--accent: {accent};">'
+        f'<div class="mp-glass-label">{label}</div>'
+        f'<div class="mp-glass-value">{value}</div>'
+        f'{delta_html}'
+        f'{note_html}'
+        f'</div>'
+    )
+    col.markdown(html, unsafe_allow_html=True)
+
+
+# ==================== KPI CARDS ====================
 def _render_kpi(agg):
-    """KPI cards ringkasan multi-plant."""
     st.markdown("### 🏭 Ringkasan Multi-Plant")
 
     total_plants = len(agg)
@@ -17,31 +151,58 @@ def _render_kpi(agg):
     total_cost = agg["Cost"].sum() if agg["Cost"].notna().any() else 0
     avg_cost_kg = (total_cost / total_output) if total_output > 0 else 0
 
+    # Top performer
+    top = agg.loc[agg["Output_Kg"].idxmax()]
+
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Jumlah Plant", f"{total_plants}")
-    c2.metric("Total Output", f"{total_output:,.0f} Kg")
+    _glass_card(c1, "Jumlah Plant", str(total_plants), "#8B5CF6",
+                note="Lokasi produksi aktif")
+    _glass_card(c2, "Total Output", f"{total_output:,.0f} Kg", "#3B82F6",
+                note="Akumulasi semua plant")
 
     if total_cost > 0:
-        c3.metric("Total Cost", f"Rp {total_cost/1_000_000_000:.2f} M",
-                  help=f"Rp {total_cost:,.0f}")
-        c4.metric("Avg Cost/Kg", f"Rp {avg_cost_kg:,.0f}")
+        _glass_card(c3, "Total Cost", _fmt_rp(total_cost), "#EC4899",
+                    note=f"Rp {total_cost:,.0f}")
+        _glass_card(c4, "Avg Cost/Kg", f"Rp {avg_cost_kg:,.0f}", "#F59E0B",
+                    note="Rata-rata tertimbang")
     else:
-        c3.metric("Total Cost", "—",
-                  help="Dimensi biaya per Plant belum tersedia")
-        c4.metric("Avg Cost/Kg", "—")
+        _glass_card(c3, "Total Cost", "—", "#94A3B8",
+                    note="Dimensi biaya per plant belum tersedia")
+        _glass_card(c4, "Avg Cost/Kg", "—", "#94A3B8",
+                    note="Data belum lengkap")
+
+    # Banner top performer
+    html = (
+        f'<div class="mp-banner" style="--b-accent: #10B981;">'
+        f'<div class="mp-block">'
+        f'<div class="mp-block-label" style="color:#34D399;">🏆 TOP PERFORMER</div>'
+        f'<div class="mp-block-value">{top["Plant"]}</div>'
+        f'<div class="mp-block-sub">Output {top["Output_Kg"]:,.0f} Kg</div>'
+        f'</div>'
+        f'<div class="mp-block">'
+        f'<div class="mp-block-label" style="color:#A78BFA;">📊 SHARE OF OUTPUT</div>'
+        f'<div class="mp-block-value">{top["Share_Pct"]:.1f}%</div>'
+        f'<div class="mp-block-sub">Dari total produksi grup</div>'
+        f'</div>'
+        f'<div class="mp-block">'
+        f'<div class="mp-block-label" style="color:#A78BFA;">🏭 TOTAL PLANT</div>'
+        f'<div class="mp-block-value">{total_plants}</div>'
+        f'<div class="mp-block-sub">Lokasi aktif</div>'
+        f'</div>'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 
+# ==================== OUTPUT COMPARISON ====================
 def _render_output_comparison(agg):
-    """Bar chart perbandingan output antar plant."""
     st.markdown("### 📊 Perbandingan Output per Plant")
     st.caption("Total output produksi setiap plant pada periode terpilih.")
 
-    # Sort by output
     df = agg.sort_values("Output_Kg", ascending=False).reset_index(drop=True)
 
     fig = go.Figure(go.Bar(
-        x=df["Plant"],
-        y=df["Output_Kg"],
+        x=df["Plant"], y=df["Output_Kg"],
         marker=dict(color=COLORS["primary"], line=dict(width=0)),
         text=[f"<b>{v:,.0f} Kg</b>" for v in df["Output_Kg"]],
         textposition="outside",
@@ -50,7 +211,6 @@ def _render_output_comparison(agg):
         hovertemplate="<b>%{x}</b><br>Output: %{y:,.0f} Kg<extra></extra>",
     ))
 
-    # AVG line
     avg = df["Output_Kg"].mean()
     fig.add_hline(
         y=avg, line_dash="dash", line_color=COLORS["accent"], line_width=2,
@@ -62,34 +222,24 @@ def _render_output_comparison(agg):
     fig = apply_theme(fig, height=400)
     fig.update_layout(
         showlegend=False,
-        yaxis=dict(
-            title="<b>Output (Kg)</b>",
-            tickformat=",.0f",
-        ),
-        xaxis=dict(
-            title="<b>Plant</b>",
-            tickfont=dict(size=12),
-        ),
+        yaxis=dict(title="<b>Output (Kg)</b>", tickformat=",.0f"),
+        xaxis=dict(title="<b>Plant</b>", tickfont=dict(size=12)),
         margin=dict(t=60, b=60, l=80, r=100),
     )
     st.plotly_chart(fig, use_container_width=True)
 
 
+# ==================== SHARE PIE ====================
 def _render_share_pie(agg):
-    """Pie chart share of output."""
     st.markdown("### 🥧 Share of Output")
     st.caption("Porsi output setiap plant terhadap total produksi.")
 
     df = agg.sort_values("Output_Kg", ascending=False).reset_index(drop=True)
 
     fig = go.Figure(go.Pie(
-        labels=df["Plant"],
-        values=df["Output_Kg"],
-        hole=0.55,
-        marker=dict(
-            colors=CATEGORY_COLORS[:len(df)],
-            line=dict(color="#FFFFFF", width=3),
-        ),
+        labels=df["Plant"], values=df["Output_Kg"], hole=0.55,
+        marker=dict(colors=CATEGORY_COLORS[:len(df)],
+                    line=dict(color="#FFFFFF", width=3)),
         textinfo="label+percent",
         textposition="inside",
         textfont=dict(size=11, color="#FFFFFF", family="Inter"),
@@ -106,17 +256,15 @@ def _render_share_pie(agg):
     fig = apply_theme(fig, height=380)
     fig.update_layout(
         showlegend=True,
-        legend=dict(
-            orientation="v", yanchor="middle", y=0.5,
-            xanchor="left", x=1.02,
-            font=dict(size=11, color=COLORS["text_axis"]),
-        ),
+        legend=dict(orientation="v", yanchor="middle", y=0.5,
+                    xanchor="left", x=1.02,
+                    font=dict(size=11, color=COLORS["text_axis"])),
     )
     st.plotly_chart(fig, use_container_width=True)
 
 
+# ==================== COST COMPARISON ====================
 def _render_cost_comparison(agg):
-    """Bar chart Cost/Kg per plant (kalau data biaya tersedia)."""
     if not agg["Cost_Kg"].notna().any():
         return
 
@@ -124,11 +272,9 @@ def _render_cost_comparison(agg):
     st.caption("Plant mana yang paling efisien dari sisi biaya per kilogram?")
 
     df = agg[agg["Cost_Kg"].notna()].sort_values("Cost_Kg", ascending=True).reset_index(drop=True)
-
     if df.empty:
         return
 
-    # Warna: terendah hijau, tertinggi merah
     min_cost = df["Cost_Kg"].min()
     max_cost = df["Cost_Kg"].max()
 
@@ -142,9 +288,7 @@ def _render_cost_comparison(agg):
             colors.append(COLORS["warning"])
 
     fig = go.Figure(go.Bar(
-        x=df["Cost_Kg"],
-        y=df["Plant"],
-        orientation="h",
+        x=df["Cost_Kg"], y=df["Plant"], orientation="h",
         marker=dict(color=colors, line=dict(width=0)),
         text=[f"<b>Rp {v:,.0f}/Kg</b>" for v in df["Cost_Kg"]],
         textposition="outside",
@@ -163,23 +307,19 @@ def _render_cost_comparison(agg):
     st.plotly_chart(fig, use_container_width=True)
 
 
+# ==================== TABLE ====================
 def _render_table(agg):
-    """Tabel detail per plant."""
     st.markdown("### 📋 Detail per Plant")
 
     df = agg.copy()
-
-    # Format
     df["Output_Formatted"] = df["Output_Kg"].apply(lambda x: f"{x:,.0f} Kg")
     df["Share_Formatted"] = df["Share_Pct"].apply(lambda x: f"{x:.1f}%")
 
     if df["Cost"].notna().any():
         df["Cost_Formatted"] = df["Cost"].apply(
-            lambda x: f"Rp {x:,.0f}" if pd.notna(x) else "—"
-        )
+            lambda x: f"Rp {x:,.0f}" if pd.notna(x) else "—")
         df["Cost_Kg_Formatted"] = df["Cost_Kg"].apply(
-            lambda x: f"Rp {x:,.0f}" if pd.notna(x) else "—"
-        )
+            lambda x: f"Rp {x:,.0f}" if pd.notna(x) else "—")
 
         display = pd.DataFrame({
             "Plant": df["Plant"],
@@ -200,7 +340,10 @@ def _render_table(agg):
     st.dataframe(display, use_container_width=True, hide_index=True)
 
 
+# ==================== MAIN ====================
 def render(ds: Dataset, scope: Scope) -> None:
+    _inject_css()
+
     st.title("🏭 Multi-Plant & Cost Allocation")
     st.caption("Konsolidasi produksi & biaya lintas plant (BRD 6).")
 
@@ -220,14 +363,13 @@ def render(ds: Dataset, scope: Scope) -> None:
         st.info("Tidak ada data produksi pada filter terpilih.")
         return
 
-    # Aggregate output per plant
+    # Aggregate
     agg = prod.groupby("Plant", as_index=False).agg(
         Output_Kg=("Output_Kg", "sum"),
         Rows=("Output_Kg", "count"),
     )
     agg["Share_Pct"] = agg["Output_Kg"] / agg["Output_Kg"].sum() * 100
 
-    # Coba join dengan data biaya per plant
     costs = ds.costs
     if (costs is not None and not costs.empty
             and "Plant" in costs.columns and costs["Plant"].notna().any()):
@@ -243,21 +385,19 @@ def render(ds: Dataset, scope: Scope) -> None:
             "Analisis Cost/Kg per Plant tidak dapat dihitung."
         )
 
-    # 1. KPI cards
+    # 1. KPI cards + Banner
     _render_kpi(agg)
 
     st.markdown("---")
 
     # 2. Output comparison + Pie
     col_left, col_right = st.columns([1.4, 1])
-
     with col_left:
         _render_output_comparison(agg)
-
     with col_right:
         _render_share_pie(agg)
 
-    # 3. Cost/Kg comparison (kalau ada)
+    # 3. Cost/Kg comparison
     if agg["Cost_Kg"].notna().any():
         st.markdown("---")
         _render_cost_comparison(agg)
@@ -271,14 +411,12 @@ def render(ds: Dataset, scope: Scope) -> None:
     st.markdown("---")
     st.markdown("### 💡 Insight")
 
-    # Top plant
     top = agg.loc[agg["Output_Kg"].idxmax()]
     st.success(
         f"🏆 **Top Performer:** {top['Plant']} menghasilkan "
         f"**{top['Output_Kg']:,.0f} Kg** ({top['Share_Pct']:.1f}% dari total output)."
     )
 
-    # Lowest plant
     if len(agg) > 1:
         low = agg.loc[agg["Output_Kg"].idxmin()]
         st.info(
@@ -286,7 +424,6 @@ def render(ds: Dataset, scope: Scope) -> None:
             f"**{low['Output_Kg']:,.0f} Kg** ({low['Share_Pct']:.1f}%)."
         )
 
-    # Cost insight
     if agg["Cost_Kg"].notna().any() and len(agg[agg["Cost_Kg"].notna()]) > 1:
         best_cost = agg.loc[agg["Cost_Kg"].idxmin()]
         worst_cost = agg.loc[agg["Cost_Kg"].idxmax()]
