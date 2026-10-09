@@ -101,6 +101,53 @@ def _normalize_risk(risk):
     return risk
 
 
+def _normalize_cost_period(df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+    """Normalisasi sheet biaya agar siap dipakai untuk analisis bulanan.
+
+    Alur:
+      1. Kalau ada kolom `Date` (harian) dan belum ada `Period`
+         → derive `Period` = YYYY-MM dari `Date`.
+      2. Kalau kolom `Date` ada, agregasi harian → bulanan:
+         - group by: Material (kalau ada), Plant (kalau ada), Period
+         - sum: Cost / Electricity_Cost / Monthly_Dep / Qty_Kg (yang ada)
+      3. Drop kolom `Date` supaya konsisten dengan format bulanan.
+    """
+    if df is None or df.empty:
+        return df
+
+    df = df.copy()
+    has_date = "Date" in df.columns
+    has_period = "Period" in df.columns
+
+    # 1) Derive Period dari Date kalau perlu
+    if has_date and not has_period:
+        dt = pd.to_datetime(df["Date"], errors="coerce")
+        df["Period"] = dt.dt.strftime("%Y-%m")
+
+    if "Period" not in df.columns:
+        return df  # tidak ada informasi waktu; biarkan apa adanya
+
+    # 2) Agregasi harian → bulanan (hanya kalau ada Date)
+    if has_date:
+        group_cols = ["Period"]
+        for col in ("Plant", "Material", "Category"):
+            if col in df.columns:
+                group_cols.append(col)
+
+        agg_map = {}
+        for col in ("Cost", "Electricity_Cost", "Monthly_Dep", "Qty_Kg"):
+            if col in df.columns:
+                agg_map[col] = "sum"
+
+        if agg_map:
+            df = df.groupby(group_cols, as_index=False, dropna=False).agg(agg_map)
+
+        # Drop Date setelah agregasi (sudah tidak relevan)
+        df = df.drop(columns=["Date"], errors="ignore")
+
+    return df
+
+
 def load_dataset(connector: DataConnector, is_demo: bool = False,
                  today: Optional[date] = None) -> Dataset:
     report = ValidationReport(source_label=getattr(connector, "label", ""))
@@ -123,6 +170,11 @@ def load_dataset(connector: DataConnector, is_demo: bool = False,
 
     if report.blocking:
         return Dataset(report=report, is_demo=is_demo)
+
+    # ==== NORMALISASI SHEET BIAYA (harian → bulanan) ====
+    for sheet_name, _col, _cat in COST_SHEETS:
+        if sheet_name in clean:
+            clean[sheet_name] = _normalize_cost_period(clean[sheet_name])
 
     raw_material = clean.get("Raw_Material")
     production = _derive_input_kg(clean.get("Production"), raw_material)

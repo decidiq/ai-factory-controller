@@ -33,23 +33,48 @@ def num(name, level=REQUIRED, unit="", **kw):
     return Column(name, "number", level, unit=unit, **kw)
 
 
+# Dimensi umum di sheet biaya + kolom Date (untuk ERP yang harian)
 _DIMS = (
+    Column("Date", "date", OPTIONAL, feeds="Dipakai turunkan Period harian"),
     text("Plant", OPTIONAL, feeds="Biaya per Plant"),
     text("Period", OPTIONAL, feeds="Biaya per periode (YYYY-MM)"),
 )
 
+
 SHEETS: Tuple[Sheet, ...] = (
     Sheet("Raw_Material", (
         text("Material"),
-        num("Cost", unit="Rp"),
-        num("Qty_Kg", unit="Kg"),
+        num("Cost", unit="Rp",
+            aliases=("Total_Cost_Rp", "Cost_Rp", "Total_Cost")),
+        num("Qty_Kg", unit="Kg",
+            aliases=("Quantity_Kg", "Quantity")),
     ) + _DIMS, module="COGM, Pareto, Input_Kg turunan"),
 
-    Sheet("Packaging", (num("Cost", unit="Rp"),) + _DIMS, module="COGM"),
-    Sheet("Direct_Labor", (num("Cost", unit="Rp"),) + _DIMS, module="COGM"),
-    Sheet("Utility", (num("Electricity_Cost", unit="Rp", aliases=("Cost",)),) + _DIMS, module="COGM"),
-    Sheet("Maintenance", (num("Cost", unit="Rp", aliases=("Maintenance",)),) + _DIMS, module="COGM"),
-    Sheet("Depreciation", (num("Monthly_Dep", unit="Rp/bulan"),) + _DIMS, module="COGM"),
+    Sheet("Packaging", (
+        num("Cost", unit="Rp",
+            aliases=("Total_Cost_Rp", "Cost_Rp", "Total_Cost")),
+    ) + _DIMS, module="COGM"),
+
+    Sheet("Direct_Labor", (
+        num("Cost", unit="Rp",
+            aliases=("Total_Cost_Rp", "Cost_Rp", "Total_Cost")),
+    ) + _DIMS, module="COGM"),
+
+    Sheet("Utility", (
+        num("Electricity_Cost", unit="Rp",
+            aliases=("Cost", "Total_Cost_Rp", "Cost_Rp", "Total_Cost")),
+    ) + _DIMS, module="COGM"),
+
+    Sheet("Maintenance", (
+        num("Cost", unit="Rp",
+            aliases=("Maintenance", "Total_Cost_Rp", "Cost_Rp", "Total_Cost")),
+    ) + _DIMS, module="COGM"),
+
+    Sheet("Depreciation", (
+        num("Monthly_Dep", unit="Rp/bulan",
+            aliases=("Cost", "Total_Cost_Rp", "Cost_Rp",
+                     "Depreciation_Cost_Rp", "Total_Cost")),
+    ) + _DIMS, module="COGM"),
 
     Sheet("Production", (
         Column("Date", "date"),
@@ -79,8 +104,10 @@ SHEETS: Tuple[Sheet, ...] = (
 
     Sheet("Budget", (
         text("Category"),
-        num("Budget", unit="Rp"),
-        num("Actual", KPI, "Rp"),
+        num("Budget", unit="Rp", aliases=("Budget_Rp",)),
+        num("Actual", KPI, "Rp", aliases=("Actual_Rp",)),
+        Column("Period", "text", OPTIONAL, aliases=("Month",),
+               feeds="Periode budget (YYYY-MM)"),
     ), core=False, module="Manufacturing Variance"),
 
     Sheet("Inventory", (

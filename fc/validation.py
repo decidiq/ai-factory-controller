@@ -187,7 +187,7 @@ def validate_sheet(raw: pd.DataFrame, sheet: Sheet, today: Optional[date] = None
             reject(df["Output_Kg"] > df["Input_Kg"], "Output_Kg", "Output_Kg melebihi Input_Kg.")
         if {"Downtime_Min", "Planned_Time_Min"} <= set(df.columns):
             reject(df["Downtime_Min"] > df["Planned_Time_Min"], "Downtime_Min", "Downtime_Min melebihi Planned_Time_Min.")
-        keys = [k for k in ("Date", "Plant", "Line", "Machine") if k in df.columns]
+        keys = [k for k in ("Date", "Plant", "Line", "Machine", "Product") if k in df.columns]
         dup = df.duplicated(subset=keys, keep="first") & ~bad
         reject(dup, ", ".join(keys), "Baris duplikat (kombinasi " + "/".join(keys) + " sudah ada).")
 
