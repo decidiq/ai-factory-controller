@@ -10,140 +10,207 @@ from ..intel.memory import (compute_stats, compute_weekly_trend,
 from .charts import CATEGORY_COLORS, COLORS, apply_theme
 
 
+# ==================== CSS GLASSMORPHISM ====================
+GLASS_CSS = """
+<style>
+.mem-glass {
+    position: relative;
+    background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
+    border: 1px solid rgba(196, 181, 253, 0.5);
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    min-height: 100px;
+    margin-bottom: 8px;
+}
+.mem-glass::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent, #8B5CF6) 0%, #EC4899 100%);
+}
+.mem-glass:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 32px rgba(139, 92, 246, 0.18);
+    border-color: rgba(139, 92, 246, 0.6);
+}
+.mem-glass-label {
+    color: #6D28D9;
+    font-weight: 700;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 6px;
+}
+.mem-glass-value {
+    color: #0F172A;
+    font-weight: 800;
+    font-size: 1.6rem;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+.mem-glass-note {
+    color: #94A3B8;
+    font-size: 0.68rem;
+    font-style: italic;
+    line-height: 1.3;
+}
+
+/* Impact Banner */
+.mem-banner {
+    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
+    border-radius: 16px;
+    padding: 24px 30px;
+    color: white;
+    box-shadow: 0 12px 32px rgba(30, 27, 75, 0.25);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    margin: 20px 0;
+    position: relative;
+    overflow: hidden;
+}
+.mem-banner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #10B981 0%, #EC4899 100%);
+}
+.mem-banner-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #34D399;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.mem-banner-value {
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: #FFFFFF;
+    letter-spacing: -1.2px;
+    line-height: 1.1;
+    margin-bottom: 8px;
+}
+.mem-banner-desc {
+    font-size: 0.9rem;
+    color: #C4B5FD;
+}
+.mem-banner-desc strong { color: #34D399; }
+
+/* Insight Card */
+.mem-insight {
+    background: #FFFFFF;
+    border: 1px solid #E9D5FF;
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 16px;
+}
+.mem-insight-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1E1B4B;
+    margin-bottom: 6px;
+    letter-spacing: -0.2px;
+}
+.mem-insight-desc {
+    font-size: 0.9rem;
+    color: #475569;
+    line-height: 1.55;
+}
+.mem-insight-metric {
+    background: #F5F3FF;
+    color: #6D28D9;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+</style>
+"""
+
+
+def _inject_css():
+    st.markdown(GLASS_CSS, unsafe_allow_html=True)
+
+
+# ==================== HELPERS ====================
+def _fmt_rp(v: float) -> str:
+    if abs(v) >= 1_000_000_000:
+        return f"Rp {v/1_000_000_000:.2f} M"
+    if abs(v) >= 1_000_000:
+        return f"Rp {v/1_000_000:.1f} jt"
+    return f"Rp {v:,.0f}"
+
+
+def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
+                note: str = None) -> None:
+    note_html = f'<div class="mem-glass-note">{note}</div>' if note else ""
+    html = (
+        f'<div class="mem-glass" style="--accent: {accent};">'
+        f'<div class="mem-glass-label">{label}</div>'
+        f'<div class="mem-glass-value">{value}</div>'
+        f'{note_html}'
+        f'</div>'
+    )
+    col.markdown(html, unsafe_allow_html=True)
+
+
 # ==================== HERO METRICS ====================
-
-def _hero_card(icon: str, label: str, value: str, sub: str, color: str) -> str:
-    """Generate HTML untuk hero metric card."""
-    return f"""
-    <div style="
-        background: #FFFFFF;
-        border: 1px solid #E9D5FF;
-        border-left: 5px solid {color};
-        border-radius: 14px;
-        padding: 20px 22px;
-        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.06);
-        height: 100%;
-    ">
-        <div style="
-            font-size: 0.7rem;
-            color: {color};
-            font-weight: 700;
-            letter-spacing: 0.8px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        ">{icon} {label}</div>
-        <div style="
-            font-size: 2rem;
-            font-weight: 800;
-            color: #0F172A;
-            letter-spacing: -1px;
-            line-height: 1.1;
-        ">{value}</div>
-        <div style="
-            font-size: 0.8rem;
-            color: #64748B;
-            margin-top: 6px;
-            font-weight: 500;
-        ">{sub}</div>
-    </div>
-    """
-
-
 def _render_hero(stats) -> None:
-    """4 hero metric cards."""
+    st.markdown("### 📊 Ringkasan Keputusan")
     c1, c2, c3, c4 = st.columns(4)
 
-    with c1:
-        st.markdown(
-            _hero_card("📊", "Total Keputusan", f"{stats.total}",
-                       "Dari semua user", COLORS["primary"]),
-            unsafe_allow_html=True,
-        )
+    _glass_card(c1, "Total Keputusan", str(stats.total), "#8B5CF6",
+                note="Dari semua user")
 
-    with c2:
-        if stats.total > 0:
-            rate = stats.acceptance_rate
-            if rate >= 60:
-                color, sub = COLORS["success"], "🟢 Baik"
-            elif rate >= 40:
-                color, sub = COLORS["warning"], "🟡 Sedang"
-            else:
-                color, sub = COLORS["danger"], "🔴 Rendah"
-            st.markdown(
-                _hero_card("✅", "Acceptance Rate", f"{rate:.1f}%", sub, color),
-                unsafe_allow_html=True,
-            )
+    if stats.total > 0:
+        rate = stats.acceptance_rate
+        if rate >= 60:
+            color, note = "#10B981", "🟢 Baik"
+        elif rate >= 40:
+            color, note = "#F59E0B", "🟡 Sedang"
         else:
-            st.markdown(
-                _hero_card("✅", "Acceptance Rate", "—", "Belum ada data",
-                           COLORS["text_muted"]),
-                unsafe_allow_html=True,
-            )
+            color, note = "#EF4444", "🔴 Rendah"
+        _glass_card(c2, "Acceptance Rate", f"{rate:.1f}%", color, note=note)
+    else:
+        _glass_card(c2, "Acceptance Rate", "—", "#94A3B8",
+                    note="Belum ada data")
 
-    with c3:
-        st.markdown(
-            _hero_card("👍", "Disetujui", f"{stats.approved}",
-                       f"{stats.approved} dari {stats.total}", COLORS["success"]),
-            unsafe_allow_html=True,
-        )
-
-    with c4:
-        st.markdown(
-            _hero_card("👎", "Ditolak", f"{stats.rejected}",
-                       f"{stats.rejected} dari {stats.total}", COLORS["danger"]),
-            unsafe_allow_html=True,
-        )
+    _glass_card(c3, "👍 Disetujui", str(stats.approved), "#10B981",
+                note=f"{stats.approved} dari {stats.total}")
+    _glass_card(c4, "👎 Ditolak", str(stats.rejected), "#EF4444",
+                note=f"{stats.rejected} dari {stats.total}")
 
 
 def _render_impact(stats) -> None:
-    """Card besar Cost Saving."""
     if stats.total_impact_rp <= 0:
         return
 
-    impact = stats.total_impact_rp
-    if impact >= 1_000_000_000:
-        val = f"Rp {impact/1_000_000_000:.2f} M"
-    elif impact >= 1_000_000:
-        val = f"Rp {impact/1_000_000:.1f} jt"
-    else:
-        val = f"Rp {impact:,.0f}"
+    val = _fmt_rp(stats.total_impact_rp)
 
-    st.markdown(f"""
-    <div style="
-        background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
-        color: #FFFFFF;
-        padding: 26px 30px;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.25);
-        margin: 20px 0;
-    ">
-        <div style="
-            font-size: 0.75rem;
-            letter-spacing: 1.5px;
-            opacity: 0.9;
-            font-weight: 700;
-            margin-bottom: 8px;
-        ">💰 COST SAVING DARI KEPUTUSAN ANDA</div>
-        <div style="
-            font-size: 2.6rem;
-            font-weight: 800;
-            letter-spacing: -1.5px;
-            line-height: 1.1;
-        ">{val}</div>
-        <div style="
-            font-size: 0.9rem;
-            opacity: 0.9;
-            margin-top: 10px;
-        ">Dari <strong>{stats.approved}</strong> rekomendasi yang Anda setujui.
-        Pastikan semuanya dieksekusi & diukur hasilnya.</div>
-    </div>
-    """, unsafe_allow_html=True)
+    html = (
+        f'<div class="mem-banner">'
+        f'<div class="mem-banner-label">💰 COST SAVING DARI KEPUTUSAN ANDA</div>'
+        f'<div class="mem-banner-value">{val}</div>'
+        f'<div class="mem-banner-desc">Dari <strong>{stats.approved} rekomendasi</strong> '
+        f'yang Anda setujui. Pastikan semuanya dieksekusi & diukur hasilnya.</div>'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # ==================== INSIGHTS ====================
-
 def _render_insights(insights) -> None:
-    """Insight cards premium — HTML kompak biar tidak ke-render sebagai teks."""
     if not insights:
         return
 
@@ -153,32 +220,22 @@ def _render_insights(insights) -> None:
         metric_html = ""
         if ins.metric:
             metric_html = (
-                f'<div style="background:#F5F3FF;color:#6D28D9;padding:10px 16px;'
-                f'border-radius:8px;font-weight:700;font-size:0.85rem;'
-                f'white-space:nowrap;margin-left:16px;">{ins.metric}</div>'
+                f'<div class="mem-insight-metric">{ins.metric}</div>'
             )
 
         html = (
-            f'<div style="background:#FFFFFF;border:1px solid #E9D5FF;'
-            f'border-left:4px solid {COLORS["primary"]};border-radius:12px;'
-            f'padding:18px 22px;margin-bottom:12px;'
-            f'box-shadow:0 2px 6px rgba(139,92,246,0.05);">'
-            f'<div style="display:flex;justify-content:space-between;align-items:start;">'
+            f'<div class="mem-insight" style="border-left: 4px solid {COLORS["primary"]};">'
             f'<div style="flex:1;">'
-            f'<div style="font-size:1.05rem;font-weight:700;color:#1E1B4B;'
-            f'margin-bottom:6px;letter-spacing:-0.2px;">{ins.icon} {ins.title}</div>'
-            f'<div style="font-size:0.9rem;color:#475569;line-height:1.55;">'
-            f'{ins.description}</div>'
+            f'<div class="mem-insight-title">{ins.icon} {ins.title}</div>'
+            f'<div class="mem-insight-desc">{ins.description}</div>'
             f'</div>'
             f'{metric_html}'
             f'</div>'
-            f'</div>'
         )
-
         st.markdown(html, unsafe_allow_html=True)
-        
-# ==================== WEEKLY TREND ====================
 
+
+# ==================== WEEKLY TREND ====================
 def _render_trend() -> None:
     st.markdown("### 📈 Performance Trend")
     st.caption("Keputusan Anda dalam 8 minggu terakhir.")
@@ -199,7 +256,6 @@ def _render_trend() -> None:
         st.info("Belum ada keputusan dalam 8 minggu terakhir.")
         return
 
-    # Stacked bar dengan label
     fig = go.Figure()
 
     fig.add_trace(go.Bar(
@@ -222,7 +278,6 @@ def _render_trend() -> None:
         hovertemplate="<b>%{x}</b><br>Ditolak: %{y}<extra></extra>",
     ))
 
-    # Total label di atas
     for _, row in df.iterrows():
         if row["total"] > 0:
             fig.add_annotation(
@@ -244,7 +299,6 @@ def _render_trend() -> None:
 
 
 # ==================== CATEGORY BREAKDOWN ====================
-
 def _render_category(stats) -> None:
     if not stats.top_categories:
         return
@@ -265,13 +319,9 @@ def _render_category(stats) -> None:
 
     with c1:
         fig = go.Figure(go.Pie(
-            labels=df["Kategori"],
-            values=df["Jumlah"],
-            hole=0.55,
-            marker=dict(
-                colors=CATEGORY_COLORS[:len(df)],
-                line=dict(color="#FFFFFF", width=3),
-            ),
+            labels=df["Kategori"], values=df["Jumlah"], hole=0.55,
+            marker=dict(colors=CATEGORY_COLORS[:len(df)],
+                        line=dict(color="#FFFFFF", width=3)),
             textinfo="label+percent",
             textposition="inside",
             textfont=dict(size=11, color="#FFFFFF", family="Inter"),
@@ -286,10 +336,7 @@ def _render_category(stats) -> None:
         )
 
         fig = apply_theme(fig, height=340)
-        fig.update_layout(
-            showlegend=False,
-            margin=dict(t=20, b=20, l=20, r=20),
-        )
+        fig.update_layout(showlegend=False, margin=dict(t=20, b=20, l=20, r=20))
         st.plotly_chart(fig, use_container_width=True)
 
     with c2:
@@ -301,7 +348,6 @@ def _render_category(stats) -> None:
 
 
 # ==================== DECISIONS LOG ====================
-
 def _render_log() -> None:
     st.markdown("### 📋 Log Keputusan")
     st.caption("Semua keputusan user tercatat permanen di database.")
@@ -317,7 +363,6 @@ def _render_log() -> None:
         return
 
     df = pd.DataFrame(rows)
-
     cols = [c for c in ("timestamp", "user", "recommendation",
                         "decision", "notes", "outcome_30d",
                         "outcome_60d", "outcome_90d")
@@ -341,7 +386,6 @@ def _render_log() -> None:
 
 
 # ==================== OUTCOME TRACKER ====================
-
 def _render_outcome() -> None:
     st.markdown("### 📝 Update Outcome Keputusan")
     st.caption("Catat hasil nyata dari keputusan yang sudah dieksekusi.")
@@ -388,8 +432,9 @@ def _render_outcome() -> None:
 
 
 # ==================== MAIN ====================
-
 def render(ds, scope) -> None:
+    _inject_css()
+
     st.title("🧠 Institutional Memory")
     st.caption(
         "AI belajar dari keputusan Anda. Semakin banyak keputusan, "
@@ -402,16 +447,13 @@ def render(ds, scope) -> None:
         st.error(f"Gagal memuat statistik: {e}")
         return
 
-    # Hero metrics
     _render_hero(stats)
 
-    # Impact card
     if stats.approved > 0:
         _render_impact(stats)
 
     st.markdown("---")
 
-    # Insights
     try:
         insights = generate_insights(stats, min_decisions=3)
         _render_insights(insights)
@@ -420,7 +462,6 @@ def render(ds, scope) -> None:
 
     st.markdown("---")
 
-    # Tabs
     tab1, tab2, tab3, tab4 = st.tabs([
         "📈 Performance Trend",
         "🎯 Kategori",
@@ -430,13 +471,10 @@ def render(ds, scope) -> None:
 
     with tab1:
         _render_trend()
-
     with tab2:
         _render_category(stats)
-
     with tab3:
         _render_log()
-
     with tab4:
         _render_outcome()
 
