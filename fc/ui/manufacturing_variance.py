@@ -3,10 +3,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from ..config import targets_from_config
-from ..kpi import variance_table
+from ..config import TARGETS as DEFAULT_TARGETS, targets_from_config
+from ..kpi import variance_table, summarize
 from ..pipeline import Dataset
 from .charts import COLORS, apply_theme
+from .components import (
+    page_header, mini_health_score, format_period_label,
+    compute_health_score, section_divider,
+)
 
 
 # ==================== CSS GLASSMORPHISM ====================
@@ -64,7 +68,6 @@ GLASS_CSS = """
     letter-spacing: 0.3px;
 }
 
-/* Banner */
 .mv-banner {
     background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
     border-radius: 16px;
@@ -115,6 +118,10 @@ def _inject_css():
     st.markdown(GLASS_CSS, unsafe_allow_html=True)
 
 
+def _active_targets():
+    return st.session_state.get("_targets") or DEFAULT_TARGETS
+
+
 # ==================== HELPERS ====================
 def _fmt_rp(v: float) -> str:
     if abs(v) >= 1_000_000_000:
@@ -145,7 +152,7 @@ def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
 
 # ==================== KPI CARDS ====================
 def _render_kpi_cards(tbl, targets):
-    st.markdown("### 💰 Ringkasan Budget vs Actual")
+    st.markdown("#### 💰 Ringkasan Budget vs Actual")
 
     total_budget = tbl["Budget"].sum()
     total_actual = tbl["Actual"].sum()
@@ -191,7 +198,6 @@ def _render_kpi_cards(tbl, targets):
             f'</div>'
             f'</div>'
         )
-        st.markdown(html, unsafe_allow_html=True)
     else:
         html = (
             f'<div class="mv-banner" style="--b-accent: #10B981;">'
@@ -212,19 +218,18 @@ def _render_kpi_cards(tbl, targets):
             f'</div>'
             f'</div>'
         )
-        st.markdown(html, unsafe_allow_html=True)
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # ==================== BAR CHART ====================
 def _render_bar_chart(tbl):
-    st.markdown("### 📊 Variance per Kategori")
+    st.markdown("#### 📊 Variance per Kategori")
     st.caption("Perbandingan Budget vs Actual untuk setiap kategori biaya.")
 
     fig = go.Figure()
 
     fig.add_trace(go.Bar(
-        name="Budget",
-        x=tbl["Category"], y=tbl["Budget"],
+        name="Budget", x=tbl["Category"], y=tbl["Budget"],
         marker=dict(color=COLORS["primary"], line=dict(width=0)),
         text=[f"<b>Rp {v/1_000_000:.1f} jt</b>" for v in tbl["Budget"]],
         textposition="outside",
@@ -234,8 +239,7 @@ def _render_bar_chart(tbl):
     ))
 
     fig.add_trace(go.Bar(
-        name="Actual",
-        x=tbl["Category"], y=tbl["Actual"],
+        name="Actual", x=tbl["Category"], y=tbl["Actual"],
         marker=dict(color=COLORS["accent"], line=dict(width=0)),
         text=[f"<b>Rp {v/1_000_000:.1f} jt</b>" for v in tbl["Actual"]],
         textposition="outside",
@@ -246,16 +250,11 @@ def _render_bar_chart(tbl):
 
     fig = apply_theme(fig, height=440)
     fig.update_layout(
-        barmode="group",
-        bargap=0.35, bargroupgap=0.1,
-        yaxis=dict(
-            title=dict(text="<b>Nilai (Rp)</b>", font=dict(size=12, color=COLORS["text"])),
-            tickformat=",.0f", tickfont=dict(size=10),
-        ),
-        xaxis=dict(
-            title=dict(text="<b>Kategori</b>", font=dict(size=12, color=COLORS["text"])),
-            tickfont=dict(size=12, color=COLORS["text"]),
-        ),
+        barmode="group", bargap=0.35, bargroupgap=0.1,
+        yaxis=dict(title=dict(text="<b>Nilai (Rp)</b>", font=dict(size=12, color=COLORS["text"])),
+                   tickformat=",.0f", tickfont=dict(size=10)),
+        xaxis=dict(title=dict(text="<b>Kategori</b>", font=dict(size=12, color=COLORS["text"])),
+                   tickfont=dict(size=12, color=COLORS["text"])),
         legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center"),
         margin=dict(t=60, b=80, l=80, r=40),
     )
@@ -264,7 +263,7 @@ def _render_bar_chart(tbl):
 
 # ==================== VARIANCE CHART ====================
 def _render_variance_chart(tbl):
-    st.markdown("### 📉 Variance per Kategori (Rp)")
+    st.markdown("#### 📉 Variance per Kategori (Rp)")
     st.caption("Berapa selisih Actual vs Budget? Merah = Over, Hijau = Under.")
 
     colors = [
@@ -292,15 +291,11 @@ def _render_variance_chart(tbl):
     fig = apply_theme(fig, height=380)
     fig.update_layout(
         showlegend=False,
-        yaxis=dict(
-            title=dict(text="<b>Variance (Rp)</b>", font=dict(size=12, color=COLORS["text"])),
-            tickformat=",.0f", tickfont=dict(size=10),
-            zeroline=True, zerolinecolor=COLORS["text_muted"], zerolinewidth=2,
-        ),
-        xaxis=dict(
-            title=dict(text="<b>Kategori</b>", font=dict(size=12, color=COLORS["text"])),
-            tickfont=dict(size=12, color=COLORS["text"]),
-        ),
+        yaxis=dict(title=dict(text="<b>Variance (Rp)</b>", font=dict(size=12, color=COLORS["text"])),
+                   tickformat=",.0f", tickfont=dict(size=10),
+                   zeroline=True, zerolinecolor=COLORS["text_muted"], zerolinewidth=2),
+        xaxis=dict(title=dict(text="<b>Kategori</b>", font=dict(size=12, color=COLORS["text"])),
+                   tickfont=dict(size=12, color=COLORS["text"])),
         margin=dict(t=60, b=80, l=80, r=40),
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -308,7 +303,7 @@ def _render_variance_chart(tbl):
 
 # ==================== TABLE ====================
 def _render_table(tbl):
-    st.markdown("### 📋 Tabel Detail Variance")
+    st.markdown("#### 📋 Tabel Detail Variance")
 
     display = tbl.copy()
     display["Budget"] = display["Budget"].apply(lambda x: f"Rp {x:,.0f}")
@@ -322,18 +317,15 @@ def _render_table(tbl):
     display["Utilization_Pct"] = display["Utilization_Pct"].apply(
         lambda x: f"{x:.2f}%" if pd.notna(x) else "—"
     )
-
     display["Status"] = display["Status"].map({
         "Over Budget": "🔴 Over Budget",
         "Under Budget": "🟢 Under Budget",
         "On Budget": "🟡 On Budget",
     })
-
     display = display.rename(columns={
         "Variance_Pct": "Variance %",
         "Utilization_Pct": "Utilization %",
     })
-
     st.dataframe(display, use_container_width=True, hide_index=True)
 
 
@@ -341,8 +333,17 @@ def _render_table(tbl):
 def render(ds: Dataset, scope) -> None:
     _inject_css()
 
-    st.title("⚖️ Manufacturing Variance")
-    st.caption("Analisis Budget vs Actual per kategori biaya (BRD 6).")
+    # ===== HEADER =====
+    page_header(
+        title="Manufacturing Variance",
+        subtitle=(
+            f"Sumber: {ds.report.source_label} · "
+            f"Analisis Budget vs Actual per kategori biaya"
+        ),
+        granularity="Total",
+        period_label=format_period_label(scope),
+        icon="⚖️",
+    )
 
     budget = ds.budget
     if budget is None or budget.empty:
@@ -361,21 +362,53 @@ def render(ds: Dataset, scope) -> None:
         )
         return
 
-    targets = targets_from_config(ds.config)
+    # ===== MINI HEALTH SCORE =====
+    targets = _active_targets()
+    try:
+        summary = summarize(ds, scope)
+        score, status, color = compute_health_score(summary, targets)
+        mini_health_score(score, status, color)
+    except Exception:
+        pass
+
+    # ===== SECTION: BUDGET vs ACTUAL =====
+    section_divider(
+        title="Budget vs Actual",
+        subtitle="Perbandingan alokasi budget dengan realisasi aktual per kategori biaya.",
+        icon="📊",
+        badge="TOTAL",
+        color="#8B5CF6",
+        bg1="#F5F3FF",
+        bg2="#FFFFFF",
+    )
+
+    # Info kalau tidak ada Period
+    if "Period" not in budget.columns:
+        st.info(
+            "ℹ️ **Sheet Budget tidak memiliki dimensi bulan.** "
+            "Angka di bawah adalah **total semua periode** (Year-to-Date). "
+            "Untuk melihat breakdown per bulan, gunakan halaman "
+            "**Cost Analysis** atau **Cost DNA**."
+        )
+
     tbl = variance_table(budget)
 
     _render_kpi_cards(tbl, targets)
 
-    st.markdown("---")
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
     _render_bar_chart(tbl)
 
-    st.markdown("---")
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
     _render_variance_chart(tbl)
 
-    st.markdown("---")
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
     _render_table(tbl)
 
-    st.markdown("---")
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
     st.info(
         f"💡 **Toleransi variance:** ±{targets.variance_tolerance_pct:g}% "
         f"(BRD 6). Variance di luar toleransi ditandai sebagai "

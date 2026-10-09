@@ -1,4 +1,4 @@
-"""Halaman Dashboard - Glassmorphism UI + alert impact Rp + MoM (Optimized)."""
+"""Halaman Dashboard - Glassmorphism UI + section dividers (bulanan vs harian)."""
 import streamlit as st
 import plotly.express as px
 
@@ -9,64 +9,9 @@ from ..kpi import KPI, Scope, scope_production, summarize
 from ..pipeline import Dataset
 
 
-# ==================== CSS GLASSMORPHISM (LIGHT VERSION) ====================
+# ==================== CSS GLASSMORPHISM ====================
 GLASS_CSS = """
 <style>
-/* Plant Health Banner */
-.health-banner {
-    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
-    border-radius: 18px;
-    padding: 24px 30px;
-    color: white;
-    box-shadow: 0 12px 32px rgba(30, 27, 75, 0.25);
-    border: 1px solid rgba(139, 92, 246, 0.3);
-    display: flex;
-    align-items: center;
-    gap: 30px;
-    flex-wrap: wrap;
-}
-.health-left { min-width: 180px; }
-.health-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    color: #A78BFA;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-}
-.health-score {
-    font-size: 2.8rem;
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: -2px;
-}
-.health-score-max { font-size: 1.1rem; color: #94A3B8; font-weight: 600; }
-.health-status {
-    font-size: 0.9rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    margin-top: 6px;
-    text-transform: uppercase;
-}
-.health-right { flex: 1; min-width: 220px; }
-.health-progress-track {
-    height: 12px;
-    background: rgba(148, 163, 184, 0.18);
-    border-radius: 999px;
-    overflow: hidden;
-    margin-bottom: 8px;
-}
-.health-progress-fill {
-    height: 100%;
-    border-radius: 999px;
-    transition: width 0.5s ease;
-}
-.health-meta {
-    font-size: 0.78rem;
-    color: #94A3B8;
-}
-
-/* Glass Metric Card (LIGHT - no blur, no backdrop-filter) */
 .glass-metric {
     position: relative;
     background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
@@ -122,17 +67,9 @@ def _inject_css():
 
 
 # ==================== CACHED HELPERS ====================
-
 @st.cache_data(show_spinner=False)
 def _cached_summarize(ds: Dataset, scope: Scope):
     return summarize(ds, scope)
-
-
-@st.cache_data(show_spinner=False)
-def _cached_alerts(s_dict, targets):
-    """Cache alerts berdasarkan dict hasil summarize."""
-    # Karena s adalah objek kompleks, kita cache berdasarkan scope & data
-    return None  # tidak dipakai, hanya placeholder
 
 
 def _active_targets():
@@ -188,28 +125,7 @@ def _health_score(s, targets):
         return score, "Good", "#8B5CF6"
     elif score >= 70:
         return score, "Fair", "#F59E0B"
-    else:
-        return score, "Needs Attention", "#EF4444"
-
-
-def _render_health_banner(score: float, status: str, color: str) -> None:
-    st.markdown(f"""
-    <div class="health-banner">
-        <div class="health-left">
-            <div class="health-label">🏥 Plant Health Score</div>
-            <div class="health-score">{score:.0f}<span class="health-score-max">/100</span></div>
-            <div class="health-status" style="color: {color};">● {status}</div>
-        </div>
-        <div class="health-right">
-            <div class="health-progress-track">
-                <div class="health-progress-fill" style="width: {score}%; background: linear-gradient(90deg, #8B5CF6 0%, {color} 100%);"></div>
-            </div>
-            <div class="health-meta">
-                Agregat tertimbang dari Yield (30%), OEE (30%), Scrap (20%), dan Cost (20%).
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    return score, "Needs Attention", "#EF4444"
 
 
 def _render_alert(alert) -> None:
@@ -271,34 +187,21 @@ def _render_period_compare(ds: Dataset) -> None:
         st.warning(f"⚠️ **{len(worsening)} KPI memburuk** dibanding {prev}: {labels}")
 
 
-# ==================== MAIN RENDER ====================
+# ==================== SECTION 1: KPI TOTAL ====================
+def _render_section_total(s, targets, ds):
+    from .components import section_divider
 
-def render(ds: Dataset, scope: Scope) -> None:
-    _inject_css()
-    s = _cached_summarize(ds, scope)
-    targets = _active_targets()
-
-    st.title("🏭 DECIDIQ")
-    st.markdown("##### *Decision Intelligence Dashboard*")
-
-    st.caption(
-        f"Sumber: {ds.report.source_label} · Data dibaca: {ds.report.loaded_at} · "
-        f"{s.production_rows:,} baris produksi"
-    )
-    st.caption(
-        f"🎯 Target aktif: Yield ≥ {targets.yield_min:g}% · "
-        f"Scrap ≤ {targets.scrap_max:g}% · OEE ≥ {targets.oee_min:g}%"
+    section_divider(
+        title="KPI Total",
+        subtitle="Ringkasan performa periode terfilter. Angka adalah TOTAL, bukan per bulan atau per hari.",
+        icon="📊",
+        badge="TOTAL",
+        color="#8B5CF6",
+        bg1="#F5F3FF",
+        bg2="#FFFFFF",
     )
 
-    st.markdown("---")
-
-    # ---- Plant Health Score ----
-    score, status, color = _health_score(s, targets)
-    _render_health_banner(score, status, color)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ---- KPI Utama (Glassmorphism) ----
+    # KPI Cards (6 kartu)
     r1 = st.columns(3)
     _glass_metric(r1[0], "Production Volume", s.output_kg, "{:,.0f} Kg", "#8B5CF6")
     _glass_metric(r1[1], "Yield", s.yield_pct, "{:.2f}%", "#10B981")
@@ -311,34 +214,18 @@ def render(ds: Dataset, scope: Scope) -> None:
     _glass_metric(r2[1], "Cost/Kg", s.cost_per_kg, "Rp {:,.0f}", "#EC4899")
     _glass_metric(r2[2], "COGM", s.cogm, "Rp {:,.0f}", "#6366F1")
 
-    with st.expander("Rincian OEE (Availability × Performance × Quality)"):
+    # OEE Breakdown
+    with st.expander("🔍 Rincian OEE (Availability × Performance × Quality)"):
         c = st.columns(3)
         _glass_metric(c[0], "Availability", s.oee.availability, "{:.2f}%", "#8B5CF6")
         _glass_metric(c[1], "Performance", s.oee.performance, "{:.2f}%", "#A855F7")
         _glass_metric(c[2], "Quality", s.oee.quality, "{:.2f}%", "#EC4899")
 
-    st.markdown("---")
+    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
-    # ---- Alert ----
-    alerts = compute_alerts(s, targets)
-    if alerts:
-        st.subheader("🚨 Cost Alert Aktif (diurutkan berdasarkan Financial Impact)")
-        total_annual = sum(abs(a.annual_rp) for a in alerts)
-        if total_annual > 0:
-            st.markdown(
-                f"**Total potensi dampak: Rp {total_annual:,.0f}/tahun** "
-                f"— ini yang bisa dihemat jika semua masalah diperbaiki."
-            )
-        for a in alerts:
-            _render_alert(a)
-    else:
-        st.success("✅ Tidak ada peringatan aktif. Semua KPI dalam batas target.")
-
-    st.markdown("---")
-
-    # ---- KPI vs Target (Gauge) ----
+    # KPI vs Target (Gauge)
     from .charts import gauge
-    st.markdown("### 🎯 KPI vs Target")
+    st.markdown("#### 🎯 KPI vs Target")
     st.caption("Visual pencapaian target. Garis oranye = target.")
 
     g1, g2, g3 = st.columns(3)
@@ -358,20 +245,30 @@ def render(ds: Dataset, scope: Scope) -> None:
                                   min_val=60, max_val=100, higher_is_better=True),
                             use_container_width=True)
 
-    st.markdown("---")
+    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
-    # ---- Perbandingan Periode ----
-    st.subheader("📅 Month-over-Month (MoM)")
-    st.caption("Bandingkan KPI antar 2 bulan untuk melihat tren.")
-    _render_period_compare(ds)
+    # Cost Alert
+    alerts = compute_alerts(s, targets)
+    st.markdown("#### 🚨 Cost Alert Aktif")
+    st.caption("Diurutkan berdasarkan Financial Impact.")
 
-    st.markdown("---")
+    if alerts:
+        total_annual = sum(abs(a.annual_rp) for a in alerts)
+        if total_annual > 0:
+            st.markdown(
+                f"**Total potensi dampak: Rp {total_annual:,.0f}/tahun** "
+                f"— ini yang bisa dihemat jika semua masalah diperbaiki."
+            )
+        for a in alerts:
+            _render_alert(a)
+    else:
+        st.success("✅ Tidak ada peringatan aktif. Semua KPI dalam batas target.")
 
-    # ---- Bottom Charts (dalam Tab agar ringan) ----
-    st.subheader("📊 Analisis Lanjutan")
-    tab_score, tab_cogm, tab_trend = st.tabs(
-        ["🏆 Cost Control Score", "🥧 Struktur COGM", "📈 Output Harian"]
-    )
+    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+
+    # Bottom Charts (Cost Control Score + COGM)
+    st.markdown("#### 📊 Analisis Biaya")
+    tab_score, tab_cogm = st.tabs(["🏆 Cost Control Score", "🥧 Struktur COGM"])
 
     with tab_score:
         if s.score.score is None:
@@ -399,47 +296,115 @@ def render(ds: Dataset, scope: Scope) -> None:
         else:
             st.info(f"Data tidak tersedia: {s.cogm.note}")
 
-    with tab_trend:
-        from .charts import line_chart, COLORS
-        prod = scope_production(ds.production, scope)
-        if len(prod):
-            daily = prod.groupby("Date", as_index=False)["Output_Kg"].sum()
-            daily = daily.sort_values("Date").reset_index(drop=True)
 
-            n = len(daily)
-            step = 1 if n <= 10 else 2 if n <= 20 else 4 if n <= 40 else 7
+# ==================== SECTION 2: BULANAN ====================
+def _render_section_monthly(ds):
+    from .components import section_divider
 
-            fig = px.line(daily, x="Date", y="Output_Kg", markers=True)
+    section_divider(
+        title="Analisis Bulanan",
+        subtitle="Perbandingan bulan-ke-bulan (MoM). Cocok untuk laporan & tren jangka menengah.",
+        icon="📆",
+        badge="BULANAN",
+        color="#8B5CF6",
+        bg1="#F5F3FF",
+        bg2="#FFFFFF",
+    )
 
-            label_df = daily.iloc[::step].copy()
-            for _, row in label_df.iterrows():
-                fig.add_annotation(
-                    x=row["Date"], y=row["Output_Kg"],
-                    text=f"<b>{row['Output_Kg']:,.0f}</b>",
-                    showarrow=False, yshift=14,
-                    font=dict(size=9, color=COLORS["primary_dark"], family="Inter"),
-                    bgcolor="rgba(245, 243, 255, 0.9)",
-                    bordercolor=COLORS["primary_light"],
-                    borderwidth=1, borderpad=2,
-                )
+    st.markdown("#### 📅 Month-over-Month (MoM)")
+    st.caption("Bandingkan KPI antar 2 bulan untuk melihat tren.")
+    _render_period_compare(ds)
 
-            avg_val = daily["Output_Kg"].mean()
-            fig.add_hline(
-                y=avg_val, line_dash="dash",
-                line_color=COLORS["accent"], line_width=2,
-                annotation_text=f"<b>AVG {avg_val:,.0f}</b>",
-                annotation_position="right",
-                annotation_font=dict(size=10, color=COLORS["accent_dark"], family="Inter"),
-            )
 
-            fig.update_traces(
-                line=dict(color=COLORS["primary"]),
-                marker=dict(size=5, color=COLORS["primary"],
-                            line=dict(color="#FFFFFF", width=2)),
-            )
+# ==================== SECTION 3: HARIAN ====================
+def _render_section_daily(ds, scope):
+    from .components import section_divider
 
-            fig = line_chart(fig, height=360, y_title="Output (Kg)")
-            fig.update_layout(margin=dict(t=50, b=60, l=60, r=80))
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Tidak ada data produksi pada filter terpilih.")
+    section_divider(
+        title="Trend Harian",
+        subtitle="Detail per hari. Cocok untuk investigasi operasional & deteksi anomali.",
+        icon="📅",
+        badge="HARIAN",
+        color="#3B82F6",
+        bg1="#EFF6FF",
+        bg2="#FFFFFF",
+    )
+
+    from .charts import line_chart, COLORS
+    prod = scope_production(ds.production, scope)
+    if not len(prod):
+        st.info("Tidak ada data produksi pada filter terpilih.")
+        return
+
+    daily = prod.groupby("Date", as_index=False)["Output_Kg"].sum()
+    daily = daily.sort_values("Date").reset_index(drop=True)
+
+    n = len(daily)
+    step = 1 if n <= 10 else 2 if n <= 20 else 4 if n <= 40 else 7
+
+    fig = px.line(daily, x="Date", y="Output_Kg", markers=True)
+
+    label_df = daily.iloc[::step].copy()
+    for _, row in label_df.iterrows():
+        fig.add_annotation(
+            x=row["Date"], y=row["Output_Kg"],
+            text=f"<b>{row['Output_Kg']:,.0f}</b>",
+            showarrow=False, yshift=14,
+            font=dict(size=9, color=COLORS["primary_dark"], family="Inter"),
+            bgcolor="rgba(245, 243, 255, 0.9)",
+            bordercolor=COLORS["primary_light"],
+            borderwidth=1, borderpad=2,
+        )
+
+    avg_val = daily["Output_Kg"].mean()
+    fig.add_hline(
+        y=avg_val, line_dash="dash",
+        line_color=COLORS["accent"], line_width=2,
+        annotation_text=f"<b>AVG {avg_val:,.0f}</b>",
+        annotation_position="right",
+        annotation_font=dict(size=10, color=COLORS["accent_dark"], family="Inter"),
+    )
+
+    fig.update_traces(
+        line=dict(color=COLORS["primary"]),
+        marker=dict(size=5, color=COLORS["primary"],
+                    line=dict(color="#FFFFFF", width=2)),
+    )
+
+    fig = line_chart(fig, height=360, y_title="Output (Kg)")
+    fig.update_layout(margin=dict(t=50, b=60, l=60, r=80))
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ==================== MAIN RENDER ====================
+def render(ds: Dataset, scope: Scope) -> None:
+    _inject_css()
+    s = _cached_summarize(ds, scope)
+    targets = _active_targets()
+
+    # Header + Mini Health Score
+    from .components import page_header, mini_health_score, format_period_label
+    page_header(
+        title="Decidiq",
+        subtitle=(
+            f"Sumber: {ds.report.source_label} · Dibaca: {ds.report.loaded_at} · "
+            f"{s.production_rows:,} baris produksi · "
+            f"Target: Yield ≥ {targets.yield_min:g}% · Scrap ≤ {targets.scrap_max:g}% · "
+            f"OEE ≥ {targets.oee_min:g}%"
+        ),
+        granularity="Multi",
+        period_label=format_period_label(scope),
+        icon="🏭",
+    )
+
+    score, status, color = _health_score(s, targets)
+    mini_health_score(score, status, color)
+
+    # ===== SECTION 1: KPI TOTAL =====
+    _render_section_total(s, targets, ds)
+
+    # ===== SECTION 2: ANALISIS BULANAN =====
+    _render_section_monthly(ds)
+
+    # ===== SECTION 3: TREND HARIAN =====
+    _render_section_daily(ds, scope)

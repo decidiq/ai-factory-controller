@@ -3,9 +3,17 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from ..kpi import Scope, scope_production
+from ..config import TARGETS as DEFAULT_TARGETS
+from ..kpi import Scope, scope_production, summarize
 from ..pipeline import Dataset
 from .charts import CATEGORY_COLORS, COLORS, apply_theme
+from .components import (
+    page_header, mini_health_score, format_period_label,
+    compute_health_score, section_divider,
+    detect_partial_periods, partial_warning_banner,
+    period_selector, filter_dataset_by_period,
+    project_month_end_cogm, render_projection_card,
+)
 
 
 # ==================== CSS GLASSMORPHISM ====================
@@ -63,7 +71,6 @@ GLASS_CSS = """
     letter-spacing: 0.3px;
 }
 
-/* Banner */
 .mp-banner {
     background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
     border-radius: 16px;
@@ -114,7 +121,10 @@ def _inject_css():
     st.markdown(GLASS_CSS, unsafe_allow_html=True)
 
 
-# ==================== HELPERS ====================
+def _active_targets():
+    return st.session_state.get("_targets") or DEFAULT_TARGETS
+
+
 def _fmt_rp(v: float) -> str:
     if abs(v) >= 1_000_000_000:
         return f"Rp {v/1_000_000_000:.2f} M"
@@ -144,14 +154,13 @@ def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
 
 # ==================== KPI CARDS ====================
 def _render_kpi(agg):
-    st.markdown("### 🏭 Ringkasan Multi-Plant")
+    st.markdown("#### 🏭 Ringkasan Multi-Plant")
 
     total_plants = len(agg)
     total_output = agg["Output_Kg"].sum()
     total_cost = agg["Cost"].sum() if agg["Cost"].notna().any() else 0
     avg_cost_kg = (total_cost / total_output) if total_output > 0 else 0
 
-    # Top performer
     top = agg.loc[agg["Output_Kg"].idxmax()]
 
     c1, c2, c3, c4 = st.columns(4)
@@ -196,8 +205,8 @@ def _render_kpi(agg):
 
 # ==================== OUTPUT COMPARISON ====================
 def _render_output_comparison(agg):
-    st.markdown("### 📊 Perbandingan Output per Plant")
-    st.caption("Total output produksi setiap plant pada periode terpilih.")
+    st.markdown("#### 📊 Perbandingan Output per Plant")
+    st.caption("Total output produksi setiap plant.")
 
     df = agg.sort_values("Output_Kg", ascending=False).reset_index(drop=True)
 
@@ -229,9 +238,8 @@ def _render_output_comparison(agg):
     st.plotly_chart(fig, use_container_width=True)
 
 
-# ==================== SHARE PIE ====================
 def _render_share_pie(agg):
-    st.markdown("### 🥧 Share of Output")
+    st.markdown("#### 🥧 Share of Output")
     st.caption("Porsi output setiap plant terhadap total produksi.")
 
     df = agg.sort_values("Output_Kg", ascending=False).reset_index(drop=True)
@@ -263,12 +271,11 @@ def _render_share_pie(agg):
     st.plotly_chart(fig, use_container_width=True)
 
 
-# ==================== COST COMPARISON ====================
 def _render_cost_comparison(agg):
     if not agg["Cost_Kg"].notna().any():
         return
 
-    st.markdown("### 💰 Cost/Kg per Plant")
+    st.markdown("#### 💰 Cost/Kg per Plant")
     st.caption("Plant mana yang paling efisien dari sisi biaya per kilogram?")
 
     df = agg[agg["Cost_Kg"].notna()].sort_values("Cost_Kg", ascending=True).reset_index(drop=True)
@@ -307,9 +314,8 @@ def _render_cost_comparison(agg):
     st.plotly_chart(fig, use_container_width=True)
 
 
-# ==================== TABLE ====================
 def _render_table(agg):
-    st.markdown("### 📋 Detail per Plant")
+    st.markdown("#### 📋 Detail per Plant")
 
     df = agg.copy()
     df["Output_Formatted"] = df["Output_Kg"].apply(lambda x: f"{x:,.0f} Kg")
@@ -340,76 +346,8 @@ def _render_table(agg):
     st.dataframe(display, use_container_width=True, hide_index=True)
 
 
-# ==================== MAIN ====================
-def render(ds: Dataset, scope: Scope) -> None:
-    _inject_css()
-
-    st.title("🏭 Multi-Plant & Cost Allocation")
-    st.caption("Konsolidasi produksi & biaya lintas plant (BRD 6).")
-
-    if ds.production is None or ds.production.empty:
-        st.warning("Data produksi tidak tersedia.")
-        return
-
-    if "Plant" not in ds.production.columns:
-        st.info(
-            "Kolom **Plant** tidak ada di sheet Production. "
-            "Fitur multi-plant tidak tersedia pada data ini."
-        )
-        return
-
-    prod = scope_production(ds.production, scope)
-    if prod.empty:
-        st.info("Tidak ada data produksi pada filter terpilih.")
-        return
-
-    # Aggregate
-    agg = prod.groupby("Plant", as_index=False).agg(
-        Output_Kg=("Output_Kg", "sum"),
-        Rows=("Output_Kg", "count"),
-    )
-    agg["Share_Pct"] = agg["Output_Kg"] / agg["Output_Kg"].sum() * 100
-
-    costs = ds.costs
-    if (costs is not None and not costs.empty
-            and "Plant" in costs.columns and costs["Plant"].notna().any()):
-        c_by_plant = costs.groupby("Plant", as_index=False)["Cost"].sum()
-        agg = agg.merge(c_by_plant, on="Plant", how="left")
-        agg["Cost"] = agg["Cost"].fillna(0)
-        agg["Cost_Kg"] = agg["Cost"] / agg["Output_Kg"].replace(0, pd.NA)
-    else:
-        agg["Cost"] = pd.NA
-        agg["Cost_Kg"] = pd.NA
-        st.info(
-            "ℹ️ Dimensi biaya per Plant belum tersedia di sheet biaya. "
-            "Analisis Cost/Kg per Plant tidak dapat dihitung."
-        )
-
-    # 1. KPI cards + Banner
-    _render_kpi(agg)
-
-    st.markdown("---")
-
-    # 2. Output comparison + Pie
-    col_left, col_right = st.columns([1.4, 1])
-    with col_left:
-        _render_output_comparison(agg)
-    with col_right:
-        _render_share_pie(agg)
-
-    # 3. Cost/Kg comparison
-    if agg["Cost_Kg"].notna().any():
-        st.markdown("---")
-        _render_cost_comparison(agg)
-
-    st.markdown("---")
-
-    # 4. Detail table
-    _render_table(agg)
-
-    # 5. Insight
-    st.markdown("---")
-    st.markdown("### 💡 Insight")
+def _render_insights(agg):
+    st.markdown("#### 💡 Insight")
 
     top = agg.loc[agg["Output_Kg"].idxmax()]
     st.success(
@@ -434,3 +372,140 @@ def render(ds: Dataset, scope: Scope) -> None:
             f"vs {worst_cost['Plant']} (Rp {worst_cost['Cost_Kg']:,.0f}/Kg). "
             f"Selisih **Rp {gap:,.0f}/Kg** — potensi belajar antar plant."
         )
+
+
+# ==================== AGGREGATE HELPER ====================
+def _build_agg(ds, scope, selected_period):
+    """Bangun agregat per plant untuk periode terpilih."""
+    costs_f, prod_f = filter_dataset_by_period(ds, selected_period)
+
+    # Filter tambahan dari scope (Plant/Line)
+    prod_agg = scope_production(prod_f, scope)
+    if prod_agg.empty:
+        return None
+
+    agg = prod_agg.groupby("Plant", as_index=False).agg(
+        Output_Kg=("Output_Kg", "sum"),
+        Rows=("Output_Kg", "count"),
+    )
+    if agg.empty:
+        return None
+    agg["Share_Pct"] = agg["Output_Kg"] / agg["Output_Kg"].sum() * 100
+
+    if (costs_f is not None and not costs_f.empty
+            and "Plant" in costs_f.columns and costs_f["Plant"].notna().any()):
+        c_by_plant = costs_f.groupby("Plant", as_index=False)["Cost"].sum()
+        agg = agg.merge(c_by_plant, on="Plant", how="left")
+        agg["Cost"] = agg["Cost"].fillna(0)
+        agg["Cost_Kg"] = agg["Cost"] / agg["Output_Kg"].replace(0, pd.NA)
+    else:
+        agg["Cost"] = pd.NA
+        agg["Cost_Kg"] = pd.NA
+
+    return agg
+
+
+# ==================== MAIN ====================
+def render(ds: Dataset, scope: Scope) -> None:
+    _inject_css()
+
+    # ===== HEADER =====
+    page_header(
+        title="Multi-Plant & Cost Allocation",
+        subtitle=(
+            f"Sumber: {ds.report.source_label} · "
+            f"Konsolidasi produksi & biaya lintas plant"
+        ),
+        granularity="Multi",
+        period_label=format_period_label(scope),
+        icon="🏭",
+    )
+
+    if ds.production is None or ds.production.empty:
+        st.warning("Data produksi tidak tersedia.")
+        return
+
+    if "Plant" not in ds.production.columns:
+        st.info(
+            "Kolom **Plant** tidak ada di sheet Production. "
+            "Fitur multi-plant tidak tersedia pada data ini."
+        )
+        return
+
+    # ===== MINI HEALTH SCORE =====
+    targets = _active_targets()
+    try:
+        summary = summarize(ds, scope)
+        score, status, color = compute_health_score(summary, targets)
+        mini_health_score(score, status, color)
+    except Exception:
+        pass
+
+    # ===== SECTION 1: MULTI-PLANT =====
+    section_divider(
+        title="Multi-Plant Analysis",
+        subtitle="Pilih periode di bawah untuk lihat breakdown bulan tertentu.",
+        icon="🏭",
+        badge="MULTI-PLANT",
+        color="#8B5CF6",
+        bg1="#F5F3FF",
+        bg2="#FFFFFF",
+    )
+
+    # ===== PERIOD SELECTOR =====
+    selected_period, periods, partials = period_selector(
+        ds, key="mp_period_selector",
+    )
+
+    # Warning kalau partial
+    if selected_period and selected_period in partials:
+        partial_warning_banner({selected_period}, ds.production)
+
+    st.markdown("")
+
+    # ===== BUILD AGG =====
+    agg = _build_agg(ds, scope, selected_period)
+
+    if agg is None or agg.empty:
+        st.info("Tidak ada data produksi pada filter terpilih.")
+        return
+
+    # Info kalau cost per plant tidak tersedia
+    if not agg["Cost"].notna().any():
+        st.info(
+            "ℹ️ Dimensi biaya per Plant belum tersedia di sheet biaya. "
+            "Analisis Cost/Kg per Plant tidak dapat dihitung."
+        )
+
+    # ===== PROYEKSI (kalau partial) =====
+    if selected_period and selected_period in partials:
+        costs_f, prod_f = filter_dataset_by_period(ds, selected_period)
+        proj = project_month_end_cogm(costs_f, prod_f, selected_period)
+        render_projection_card(proj)
+
+    # 1. KPI cards + Banner
+    _render_kpi(agg)
+
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
+    # 2. Output comparison + Pie
+    col_left, col_right = st.columns([1.4, 1])
+    with col_left:
+        _render_output_comparison(agg)
+    with col_right:
+        _render_share_pie(agg)
+
+    # 3. Cost/Kg comparison
+    if agg["Cost_Kg"].notna().any():
+        st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+        _render_cost_comparison(agg)
+
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
+    # 4. Detail table
+    _render_table(agg)
+
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
+    # 5. Insight
+    _render_insights(agg)

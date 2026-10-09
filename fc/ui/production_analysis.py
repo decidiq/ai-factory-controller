@@ -5,9 +5,12 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from ..kpi import (Scope, oee_kpi, scrap_kpi, scope_production, yield_kpi)
+from ..config import TARGETS as DEFAULT_TARGETS
+from ..kpi import (Scope, oee_kpi, scrap_kpi, scope_production, summarize, yield_kpi)
 from ..pipeline import Dataset
 from .charts import COLORS, apply_theme, line_chart
+from .components import (page_header, mini_health_score, format_period_label,
+                         compute_health_score, section_divider)
 
 
 # ==================== CSS GLASSMORPHISM ====================
@@ -112,6 +115,10 @@ def _inject_css():
 
 
 # ==================== HELPERS ====================
+def _active_targets():
+    return st.session_state.get("_targets") or DEFAULT_TARGETS
+
+
 def _fmt(kpi, fmt: str, default: str = "—") -> str:
     if kpi.available:
         return fmt.format(kpi.value)
@@ -145,7 +152,6 @@ def _render_kpi_cards(prod, y, s, o):
     _glass_card(c[3], "Baris Data", f"{len(prod):,}", "#8B5CF6",
                 note="Total baris produksi terfilter")
 
-    # OEE breakdown
     with st.expander("🔍 Rincian OEE (Availability × Performance × Quality)"):
         cc = st.columns(3)
         _glass_card(cc[0], "Availability", _fmt(o.availability, "{:.2f}%"), "#8B5CF6")
@@ -155,12 +161,10 @@ def _render_kpi_cards(prod, y, s, o):
 
 # ==================== PERFORMANCE BANNER ====================
 def _render_perf_banner(prod):
-    """Banner highlight line terbaik/terburuk berdasarkan Yield."""
     if "Line" not in prod.columns or prod.empty:
         return
 
     try:
-        # Aggregate yield per line
         agg = prod.groupby("Line", as_index=False).agg(
             Output=("Output_Kg", "sum"),
             Input=("Input_Kg", "sum") if "Input_Kg" in prod.columns else ("Output_Kg", "sum"),
@@ -193,10 +197,123 @@ def _render_perf_banner(prod):
         return
 
 
-# ==================== TOP STATS ====================
-def _render_top_stats(daily):
-    st.markdown("### 📈 Statistik Output Harian")
+# ==================== MONTHLY SECTION ====================
+def _render_monthly_section(prod):
+    """Section khusus: trend BULANAN."""
+    section_divider(
+        title="Analisis Bulanan",
+        subtitle="Ringkasan performa per bulan. Cocok untuk laporan & tren jangka menengah.",
+        icon="📆",
+        badge="BULANAN",
+        color="#8B5CF6",
+        bg1="#F5F3FF",
+        bg2="#FFFFFF",
+    )
 
+    # Persiapkan data bulanan
+    df = prod.copy()
+    df["Date"] = pd.to_datetime(df["Date"])
+    df["Period"] = df["Date"].dt.strftime("%Y-%m")
+
+    # Agregasi per bulan
+    cols_to_sum = ["Output_Kg"]
+    if "Input_Kg" in df.columns:
+        cols_to_sum.append("Input_Kg")
+    if "Scrap_Kg" in df.columns:
+        cols_to_sum.append("Scrap_Kg")
+
+    monthly = df.groupby("Period", as_index=False)[cols_to_sum].sum().sort_values("Period")
+
+    if monthly.empty:
+        st.info("Tidak ada data bulanan pada filter terpilih.")
+        return
+
+    # Hitung KPI per bulan
+    if "Input_Kg" in monthly.columns:
+        monthly["Yield_%"] = (monthly["Output_Kg"] / monthly["Input_Kg"].replace(0, pd.NA)) * 100
+    if "Scrap_Kg" in monthly.columns and "Input_Kg" in monthly.columns:
+        monthly["Scrap_%"] = (monthly["Scrap_Kg"] / monthly["Input_Kg"].replace(0, pd.NA)) * 100
+
+    # Bar chart: Output per bulan
+    fig = go.Figure(go.Bar(
+        x=monthly["Period"],
+        y=monthly["Output_Kg"],
+        marker=dict(
+            color=monthly["Output_Kg"],
+            colorscale=[[0, "#C4B5FD"], [1, "#8B5CF6"]],
+            line=dict(width=0),
+        ),
+        text=[f"<b>{v:,.0f} Kg</b>" for v in monthly["Output_Kg"]],
+        textposition="outside",
+        textfont=dict(size=11, color=COLORS["text"], family="Inter"),
+        cliponaxis=False,
+        hovertemplate="<b>%{x}</b><br>Output: %{y:,.0f} Kg<extra></extra>",
+    ))
+
+    avg = monthly["Output_Kg"].mean()
+    fig.add_hline(
+        y=avg, line_dash="dash", line_color=COLORS["accent"], line_width=2,
+        annotation_text=f"<b>AVG {avg:,.0f} Kg</b>",
+        annotation_position="right",
+        annotation_font=dict(size=10, color=COLORS["accent_dark"]),
+    )
+
+    fig = apply_theme(fig, height=320)
+    fig.update_layout(
+        showlegend=False,
+        yaxis=dict(title="<b>Total Output (Kg)</b>", tickformat=",.0f"),
+        xaxis=dict(title="<b>Bulan</b>"),
+        margin=dict(t=40, b=50, l=80, r=100),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Tabel MoM
+    st.markdown("**Detail per Bulan:**")
+    table_rows = []
+    for _, row in monthly.iterrows():
+        entry = {
+            "Bulan": row["Period"],
+            "Output (Kg)": f"{row['Output_Kg']:,.0f}",
+        }
+        if "Input_Kg" in monthly.columns:
+            entry["Input (Kg)"] = f"{row['Input_Kg']:,.0f}"
+        if "Yield_%" in monthly.columns and pd.notna(row["Yield_%"]):
+            entry["Yield (%)"] = f"{row['Yield_%']:.2f}%"
+        if "Scrap_%" in monthly.columns and pd.notna(row["Scrap_%"]):
+            entry["Scrap (%)"] = f"{row['Scrap_%']:.2f}%"
+        table_rows.append(entry)
+
+    st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+
+
+# ==================== DAILY SECTION ====================
+def _render_daily_section(prod, daily):
+    """Section khusus: trend HARIAN."""
+    section_divider(
+        title="Analisis Harian",
+        subtitle="Detail per hari. Cocok untuk investigasi operasional & deteksi anomali.",
+        icon="📅",
+        badge="HARIAN",
+        color="#3B82F6",
+        bg1="#EFF6FF",
+        bg2="#FFFFFF",
+    )
+
+    # Statistik harian
+    _render_top_stats(daily)
+
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
+    # Trend chart
+    _render_trend_chart(daily)
+
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
+    # Detail table
+    _render_detail_table(prod)
+
+
+def _render_top_stats(daily):
     total = daily["Output_Kg"].sum()
     avg = daily["Output_Kg"].mean()
     maxv = daily["Output_Kg"].max()
@@ -218,9 +335,6 @@ def _render_top_stats(daily):
 
 # ==================== TREND CHART ====================
 def _render_trend_chart(daily):
-    st.markdown("### 📈 Performance Trend Harian")
-    st.caption("Output harian dan scrap dalam periode terpilih.")
-
     n = len(daily)
     if n <= 10:
         step = 1
@@ -232,7 +346,6 @@ def _render_trend_chart(daily):
         step = 5
 
     has_scrap = "Scrap_Kg" in daily.columns
-
     fig = make_subplots(specs=[[{"secondary_y": has_scrap}]])
 
     fig.add_trace(
@@ -301,8 +414,8 @@ def _render_trend_chart(daily):
 
 # ==================== DETAIL TABLE ====================
 def _render_detail_table(prod):
-    st.markdown("### 📋 Detail Data Produksi")
-    st.caption(f"Menampilkan {len(prod):,} baris. Sortir dengan klik header kolom.")
+    st.markdown(f"**Detail Data Produksi** — {len(prod):,} baris")
+    st.caption("Sortir dengan klik header kolom.")
 
     display_cols = [c for c in (
         "Date", "Plant", "Line", "Machine", "Product",
@@ -322,13 +435,19 @@ def _render_detail_table(prod):
 def render(ds: Dataset, scope: Scope) -> None:
     _inject_css()
 
-    st.title("📈 Production Analysis")
-    st.caption(
-        "Analisis performa produksi harian, yield, scrap, dan OEE "
-        "berdasarkan data aktual pabrik."
+    prod = scope_production(ds.production, scope)
+
+    page_header(
+        title="Production Analysis",
+        subtitle=(
+            f"Sumber: {ds.report.source_label} · "
+            f"{len(prod):,} baris produksi dalam periode terpilih"
+        ),
+        granularity="Multi",
+        period_label=format_period_label(scope),
+        icon="📈",
     )
 
-    prod = scope_production(ds.production, scope)
     if prod.empty:
         st.info("Tidak ada data produksi pada filter terpilih.")
         return
@@ -338,27 +457,23 @@ def render(ds: Dataset, scope: Scope) -> None:
     s = scrap_kpi(prod, y)
     o = oee_kpi(prod)
 
-    # 1. KPI Cards
-    _render_kpi_cards(prod, y, s, o)
+    # Mini health score
+    targets = _active_targets()
+    try:
+        summary = summarize(ds, scope)
+        score, status, color = compute_health_score(summary, targets)
+        mini_health_score(score, status, color)
+    except Exception:
+        pass
 
-    # 2. Performance Banner (line terbaik/terburuk)
+    # KPI Cards + Perf Banner
+    _render_kpi_cards(prod, y, s, o)
     _render_perf_banner(prod)
 
-    st.markdown("---")
+    # ===== SECTION 1: BULANAN =====
+    _render_monthly_section(prod)
 
-    # 3. Siapkan daily data
+    # ===== SECTION 2: HARIAN =====
     cols_y = ["Output_Kg"] + (["Scrap_Kg"] if "Scrap_Kg" in prod.columns else [])
     daily = prod.groupby("Date", as_index=False)[cols_y].sum().sort_values("Date")
-
-    # 4. Statistik ringkasan
-    _render_top_stats(daily)
-
-    st.markdown("---")
-
-    # 5. Trend chart
-    _render_trend_chart(daily)
-
-    st.markdown("---")
-
-    # 6. Detail table
-    _render_detail_table(prod)
+    _render_daily_section(prod, daily)

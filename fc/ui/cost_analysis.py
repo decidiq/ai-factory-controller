@@ -4,10 +4,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from ..config import targets_from_config
-from ..kpi import Scope, cogm_for_scope, cost_per_kg, scope_production
+from ..config import TARGETS as DEFAULT_TARGETS, targets_from_config
+from ..kpi import Scope, cogm_for_scope, cost_per_kg, scope_production, summarize
 from ..pipeline import Dataset
 from .charts import CATEGORY_COLORS, COLORS, apply_theme, pie_chart
+from .components import (page_header, mini_health_score, format_period_label,
+                         compute_health_score, section_divider)
 
 
 # ==================== CSS GLASSMORPHISM ====================
@@ -114,6 +116,10 @@ def _inject_css():
 
 
 # ==================== HELPERS ====================
+def _active_targets():
+    return st.session_state.get("_targets") or DEFAULT_TARGETS
+
+
 def _fmt_rp(v: float) -> str:
     if abs(v) >= 1_000_000_000:
         return f"Rp {v/1_000_000_000:.2f} M"
@@ -124,7 +130,6 @@ def _fmt_rp(v: float) -> str:
 
 @st.cache_data(show_spinner=False)
 def _cached_cogm(_costs, _production, plant, line, start, end):
-    """Cache hasil COGM untuk filter yang sama."""
     scope = Scope(plant, line, start, end)
     return cogm_for_scope(_costs, _production, scope)
 
@@ -148,9 +153,9 @@ def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
     col.markdown(html, unsafe_allow_html=True)
 
 
-# ==================== KPI CARDS ====================
+# ==================== SECTION 1: TOTAL ====================
 def _render_kpi(cogm_kpi, cpk, output_kg, targets, breakdown):
-    st.markdown("### 💰 Ringkasan Biaya")
+    st.markdown("#### 💰 Ringkasan Biaya Total")
 
     c1, c2, c3, c4 = st.columns(4)
 
@@ -179,7 +184,6 @@ def _render_kpi(cogm_kpi, cpk, output_kg, targets, breakdown):
         _glass_card(c4, "Komponen Terbesar", "—", accent="#94A3B8")
 
 
-# ==================== TOP BANNER ====================
 def _render_top_banner(breakdown):
     if not breakdown:
         return
@@ -198,9 +202,8 @@ def _render_top_banner(breakdown):
     """, unsafe_allow_html=True)
 
 
-# ==================== COGM BREAKDOWN ====================
 def _render_cogm_breakdown(breakdown):
-    st.markdown("### 🥧 Komposisi COGM")
+    st.markdown("#### 🥧 Komposisi COGM")
     st.caption("Distribusi setiap komponen biaya terhadap COGM total.")
 
     df = pd.DataFrame(
@@ -236,9 +239,8 @@ def _render_cogm_breakdown(breakdown):
         )
 
 
-# ==================== PARETO ====================
 def _render_pareto(ds, scope):
-    st.markdown("### 📊 Pareto Material Top 10")
+    st.markdown("#### 📊 Pareto Material Top 10")
     st.caption("Aturan 80/20: 20% material = 80% biaya. Fokus negosiasi di sini.")
 
     rm = ds.raw_material
@@ -316,10 +318,12 @@ def _render_pareto(ds, scope):
     )
 
 
-# ==================== COST/KG TREND ====================
+# ==================== SECTION 2: TREND BULANAN ====================
 def _render_cost_kg_trend(ds, scope):
-    st.markdown("### 📈 Trend Cost/Kg per Bulan")
-    st.caption("Apakah biaya per Kg naik atau turun dari waktu ke waktu?")
+    from .components import detect_partial_periods, partial_warning_banner
+
+    st.markdown("#### 📈 Trend Cost/Kg per Bulan")
+    st.caption("Perkembangan biaya per bulan. Bulan yang belum closing ditandai ⚠️ PARTIAL.")
 
     costs = ds.costs
     if costs is None or costs.empty or "Period" not in costs.columns:
@@ -358,18 +362,52 @@ def _render_cost_kg_trend(ds, scope):
         st.info("Cost/Kg tidak dapat dihitung.")
         return
 
+    # ===== Deteksi partial =====
+    partials = detect_partial_periods(prod)
+    partial_warning_banner(partials, prod)
+
+    # ===== Label & warna per bar =====
+    # Konversi Period jadi label teks biasa (tanpa HTML) agar x-axis jadi category
+    x_labels = []
+    bar_colors = []
+    custom_hover = []
+
+    vmin = merged["Cost_Per_Kg"].min()
+    vmax = merged["Cost_Per_Kg"].max()
+
+    def _color_for(v):
+        if vmax == vmin:
+            return COLORS["primary"]
+        ratio = (v - vmin) / (vmax - vmin)
+        if ratio < 0.33:
+            return COLORS["success"]
+        elif ratio < 0.66:
+            return COLORS["warning"]
+        return COLORS["danger"]
+
+    for _, row in merged.iterrows():
+        p = row["Period"]
+        v = row["Cost_Per_Kg"]
+        if p in partials:
+            x_labels.append(f"{p} ⚠️")  # tanpa HTML
+            bar_colors.append("#FCD34D")  # kuning muda
+            custom_hover.append(f"<b>{p}</b> (PARTIAL)<br>Cost/Kg: Rp {v:,.0f}<br>"
+                                f"<i>Data belum lengkap 1 bulan</i>")
+        else:
+            x_labels.append(p)
+            bar_colors.append(_color_for(v))
+            custom_hover.append(f"<b>{p}</b><br>Cost/Kg: Rp {v:,.0f}")
+
     fig = go.Figure(go.Bar(
-        x=merged["Period"], y=merged["Cost_Per_Kg"],
-        marker=dict(
-            color=merged["Cost_Per_Kg"],
-            colorscale=[[0, COLORS["success"]], [0.5, COLORS["warning"]], [1, COLORS["danger"]]],
-            line=dict(width=0),
-        ),
+        x=x_labels,
+        y=merged["Cost_Per_Kg"],
+        marker=dict(color=bar_colors, line=dict(width=0)),
         text=[f"<b>Rp {v:,.0f}</b>" for v in merged["Cost_Per_Kg"]],
         textposition="outside",
         textfont=dict(size=11, color=COLORS["text"], family="Inter"),
         cliponaxis=False,
-        hovertemplate="<b>%{x}</b><br>Cost/Kg: Rp %{y:,.0f}<extra></extra>",
+        customdata=custom_hover,
+        hovertemplate="%{customdata}<extra></extra>",
     ))
 
     avg = merged["Cost_Per_Kg"].mean()
@@ -384,30 +422,146 @@ def _render_cost_kg_trend(ds, scope):
     fig.update_layout(
         showlegend=False,
         yaxis=dict(title="<b>Cost/Kg (Rp)</b>", tickformat=",.0f"),
-        xaxis=dict(title="<b>Periode</b>", tickfont=dict(size=11)),
-        margin=dict(t=40, b=60, l=80, r=100),
+        xaxis=dict(
+            title="<b>Periode</b>",
+            tickfont=dict(size=11),
+            type="category",  # ⬅️ INI KUNCINYA
+        ),
+        margin=dict(t=40, b=70, l=80, r=100),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-
+    # ===== Insight =====
+    if partials:
+        final_periods = [p for p in merged["Period"] if p not in partials]
+        if len(final_periods) >= 2:
+            first, last = final_periods[0], final_periods[-1]
+            v_first = float(merged[merged["Period"] == first]["Cost_Per_Kg"].iloc[0])
+            v_last = float(merged[merged["Period"] == last]["Cost_Per_Kg"].iloc[0])
+            delta_pct = ((v_last - v_first) / v_first * 100) if v_first else 0
+            trend = "naik" if delta_pct > 0 else "turun"
+            st.info(
+                f"💡 **Tren (bulan closing):** Cost/Kg {trend} "
+                f"**{abs(delta_pct):.1f}%** dari **{first}** (Rp {v_first:,.0f}) "
+                f"ke **{last}** (Rp {v_last:,.0f}). "
+                f"Bulan **{sorted(partials)[-1]}** belum masuk hitungan tren karena partial."
+            )
 # ==================== MAIN RENDER ====================
 def render(ds: Dataset, scope: Scope) -> None:
     _inject_css()
 
-    st.title("💰 Cost Analysis")
-    st.caption("Analisis COGM, Pareto material, dan trend Cost/Kg.")
+    # ===== HEADER =====
+    page_header(
+        title="Cost Analysis",
+        subtitle=(
+            f"Sumber: {ds.report.source_label} · "
+            f"Analisis COGM, Pareto material, dan trend Cost/Kg"
+        ),
+        granularity="Multi",
+        period_label=format_period_label(scope),
+        icon="💰",
+    )
 
     if ds.costs is None or ds.costs.empty:
         st.warning("Data biaya tidak tersedia.")
         return
 
     targets = targets_from_config(ds.config)
-    cogm_kpi, breakdown = _cached_cogm(
-        ds.costs, ds.production,
-        scope.plant, scope.line, scope.start, scope.end,
+
+    # ===== MINI HEALTH SCORE =====
+    active_targets = _active_targets()
+    try:
+        summary = summarize(ds, scope)
+        score, status, color = compute_health_score(summary, active_targets)
+        mini_health_score(score, status, color)
+    except Exception:
+        pass
+
+    # ===== SECTION 1: TOTAL =====
+    section_divider(
+        title="Biaya per Periode",
+        subtitle="Pilih periode di bawah untuk lihat breakdown komponen bulan tertentu.",
+        icon="📊",
+        badge="TOTAL",
+        color="#8B5CF6",
+        bg1="#F5F3FF",
+        bg2="#FFFFFF",
     )
-    prod = scope_production(ds.production, scope)
-    output_kg = float(prod["Output_Kg"].sum()) if len(prod) else 0.0
+
+    # ===== PERIODE SELECTOR =====
+    from .components import detect_partial_periods
+
+    if "Period" in ds.costs.columns:
+        periods = sorted([str(p) for p in ds.costs["Period"].dropna().unique() if str(p).strip()])
+    else:
+        periods = []
+
+    partials = detect_partial_periods(ds.production)
+
+    options = ["📊 Semua Periode (Total)"]
+    period_map = {"📊 Semua Periode (Total)": None}
+
+    for p in periods:
+        label = f"📅 {p}"
+        if p in partials:
+            label += "  ⚠️ PARTIAL"
+        options.append(label)
+        period_map[label] = p
+
+    selected = st.selectbox(
+        "🔍 Pilih Periode untuk Analisis Breakdown",
+        options=options,
+        index=0,
+        key="cost_period_selector",
+    )
+    selected_period = period_map[selected]
+
+    # ===== WARNING KALAU PARTIAL =====
+    
+    if selected_period and selected_period in partials:
+        from .components import partial_warning_banner
+        partial_warning_banner({selected_period}, ds.production)
+    # Proyeksi COGM akhir bulan (kalau periode partial)
+    if selected_period and selected_period in partials:
+        from .components import project_month_end_cogm, render_projection_card
+        # Siapkan data filtered
+        _costs_f = ds.costs[ds.costs["Period"] == selected_period].copy()
+        _prod_f = ds.production.copy()
+        if "Date" in _prod_f.columns:
+            _prod_f["Date"] = pd.to_datetime(_prod_f["Date"])
+            _prod_f["Period"] = _prod_f["Date"].dt.strftime("%Y-%m")
+            _prod_f = _prod_f[_prod_f["Period"] == selected_period]
+
+        _proj = project_month_end_cogm(_costs_f, _prod_f, selected_period)
+        render_projection_card(_proj)
+
+    st.markdown("")
+
+    # ===== HITUNG COGM UNTUK PERIODE TERPILIH =====
+    if selected_period is None:
+        # Total semua periode — pakai cache
+        cogm_kpi, breakdown = _cached_cogm(
+            ds.costs, ds.production,
+            scope.plant, scope.line, scope.start, scope.end,
+        )
+        prod = scope_production(ds.production, scope)
+        output_kg = float(prod["Output_Kg"].sum()) if len(prod) else 0.0
+    else:
+        # Filter ke periode terpilih — HITUNG LANGSUNG (tanpa cache)
+        costs_filtered = ds.costs[ds.costs["Period"] == selected_period].copy()
+
+        prod_filtered = ds.production.copy()
+        if "Date" in prod_filtered.columns:
+            prod_filtered["Date"] = pd.to_datetime(prod_filtered["Date"])
+            prod_filtered["Period"] = prod_filtered["Date"].dt.strftime("%Y-%m")
+            prod_filtered = prod_filtered[prod_filtered["Period"] == selected_period]
+
+        # Hitung COGM langsung dari data yang sudah difilter
+        from ..kpi import cogm_for_scope as _cogm_direct
+        scope_filtered = Scope(scope.plant, scope.line, scope.start, scope.end)
+        cogm_kpi, breakdown = _cogm_direct(costs_filtered, prod_filtered, scope_filtered)
+
+        output_kg = float(prod_filtered["Output_Kg"].sum()) if len(prod_filtered) else 0.0
 
     if not cogm_kpi.available:
         st.info(f"COGM tidak dapat dihitung: {cogm_kpi.note}")
@@ -415,23 +569,33 @@ def render(ds: Dataset, scope: Scope) -> None:
 
     cpk = cost_per_kg(cogm_kpi, output_kg)
 
-    # 1. KPI Cards
     _render_kpi(cogm_kpi, cpk, output_kg, targets, breakdown)
-
-    # 2. Banner komponen terbesar
     _render_top_banner(breakdown)
 
-    st.markdown("---")
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 
-    # 3. COGM Breakdown
     if breakdown:
         _render_cogm_breakdown(breakdown)
-        st.markdown("---")
 
-    # 4. Pareto Material
-    _render_pareto(ds, scope)
+    # Pareto hanya tampil di mode Total
+    if selected_period is None:
+        st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+        _render_pareto(ds, scope)
+    else:
+        st.info(
+            f"ℹ️ **Pareto Material** hanya tersedia di mode **Semua Periode (Total)**. "
+            f"Kembali ke mode Total untuk melihat analisis 80/20."
+        )
 
-    st.markdown("---")
+    # ===== SECTION 2: TREND BULANAN =====
+    section_divider(
+        title="Trend Bulanan",
+        subtitle="Perkembangan biaya dari bulan ke bulan. Cocok untuk melihat tren jangka menengah.",
+        icon="📆",
+        badge="BULANAN",
+        color="#8B5CF6",
+        bg1="#F5F3FF",
+        bg2="#FFFFFF",
+    )
 
-    # 5. Cost/Kg trend
     _render_cost_kg_trend(ds, scope)

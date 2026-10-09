@@ -4,16 +4,23 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from ..config import TARGETS as DEFAULT_TARGETS
 from ..intel.cost_dna import decompose_variance, waterfall_cogm
-from ..kpi import Scope, cogm_for_scope
+from ..kpi import Scope, cogm_for_scope, summarize
 from ..pipeline import Dataset
 from .charts import CATEGORY_COLORS, COLORS, apply_theme, pie_chart
+from .components import (
+    page_header, mini_health_score, format_period_label,
+    compute_health_score, section_divider,
+    detect_partial_periods, partial_warning_banner,
+    period_selector, filter_dataset_by_period,
+    project_month_end_cogm, render_projection_card,
+)
 
 
-# ==================== CSS GLASSMORPHISM ====================
+# ==================== CSS ====================
 GLASS_CSS = """
 <style>
-/* Glass Metric Card */
 .dna-glass {
     position: relative;
     background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
@@ -66,7 +73,6 @@ GLASS_CSS = """
     line-height: 1.3;
 }
 
-/* Penyebab Utama Banner */
 .penyebab-banner {
     background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
     border-radius: 16px;
@@ -114,15 +120,16 @@ def _inject_css():
     st.markdown(GLASS_CSS, unsafe_allow_html=True)
 
 
-# ==================== CACHED HELPERS ====================
+def _active_targets():
+    return st.session_state.get("_targets") or DEFAULT_TARGETS
+
+
 @st.cache_data(show_spinner=False)
 def _cached_decompose(curr_df: pd.DataFrame, prev_df: pd.DataFrame, plant):
-    """Cache hasil decompose_variance berdasarkan data & plant."""
     return decompose_variance(curr_df, prev_df, scope_plant=plant)
 
 
 def _fmt_rp(v: float) -> str:
-    """Format Rupiah singkat."""
     if abs(v) >= 1_000_000_000:
         return f"Rp {v/1_000_000_000:.2f} M"
     if abs(v) >= 1_000_000:
@@ -133,13 +140,11 @@ def _fmt_rp(v: float) -> str:
 def _glass_metric(col, label: str, value: str, delta: str = None,
                   delta_color: str = None, accent: str = "#8B5CF6",
                   note: str = None) -> None:
-    """Render glassmorphism metric card (single-line HTML)."""
     delta_html = ""
     if delta is not None:
         color = delta_color or "#10B981"
         delta_html = f'<div class="dna-glass-delta" style="color:{color};">{delta}</div>'
     note_html = f'<div class="dna-glass-note">{note}</div>' if note else ""
-
     html = (
         f'<div class="dna-glass" style="--accent: {accent};">'
         f'<div class="dna-glass-label">{label}</div>'
@@ -150,6 +155,7 @@ def _glass_metric(col, label: str, value: str, delta: str = None,
     )
     col.markdown(html, unsafe_allow_html=True)
 
+
 def _periods(df):
     if df is None or df.empty or "Period" not in df.columns:
         return []
@@ -158,7 +164,7 @@ def _periods(df):
 
 # ==================== KPI CARDS ====================
 def _render_kpi_cards(cogm_kpi, breakdown, dec=None):
-    st.markdown("### 📊 Ringkasan COGM")
+    st.markdown("#### 📊 Ringkasan COGM")
 
     total = cogm_kpi.value
     n_comp = len(breakdown)
@@ -166,49 +172,29 @@ def _render_kpi_cards(cogm_kpi, breakdown, dec=None):
     top_val = breakdown.get(top_comp, 0)
 
     cols = st.columns(4)
-
-    _glass_metric(
-        cols[0], "Total COGM",
-        _fmt_rp(total),
-        accent="#8B5CF6",
-        note=f"Rp {total:,.0f}",
-    )
-
-    _glass_metric(
-        cols[1], "Komponen Biaya",
-        f"{n_comp} kategori",
-        accent="#3B82F6",
-        note="Kategori yang membentuk COGM",
-    )
-
-    _glass_metric(
-        cols[2], "Komponen Terbesar",
-        top_comp,
-        accent="#EC4899",
-        note=_fmt_rp(top_val),
-    )
+    _glass_metric(cols[0], "Total COGM", _fmt_rp(total),
+                  accent="#8B5CF6", note=f"Rp {total:,.0f}")
+    _glass_metric(cols[1], "Komponen Biaya", f"{n_comp} kategori",
+                  accent="#3B82F6", note="Kategori yang membentuk COGM")
+    _glass_metric(cols[2], "Komponen Terbesar", top_comp,
+                  accent="#EC4899", note=_fmt_rp(top_val))
 
     if dec is not None and abs(dec.total) > 1:
         is_up = dec.total > 0
-        _glass_metric(
-            cols[3], "Δ COGM (MoM)",
-            _fmt_rp(dec.total),
-            delta=("▲ NAIK" if is_up else "▼ TURUN"),
-            delta_color=("#EF4444" if is_up else "#10B981"),
-            accent="#F59E0B",
-        )
+        _glass_metric(cols[3], "Δ COGM (MoM)", _fmt_rp(dec.total),
+                      delta=("▲ NAIK" if is_up else "▼ TURUN"),
+                      delta_color=("#EF4444" if is_up else "#10B981"),
+                      accent="#F59E0B")
     else:
-        _glass_metric(
-            cols[3], "Δ COGM (MoM)", "—",
-            accent="#94A3B8",
-            note="Pilih 2 periode untuk lihat perubahan",
-        )
+        _glass_metric(cols[3], "Δ COGM (MoM)", "—",
+                      accent="#94A3B8",
+                      note="Pilih 2 periode untuk lihat perubahan")
 
 
 # ==================== WATERFALL COGM ====================
 def _render_waterfall(cogm_kpi, breakdown):
-    st.markdown("### 🌊 Waterfall COGM")
-    st.caption("Breakdown komponen biaya yang membentuk COGM total.")
+    st.markdown("#### 🌊 Waterfall COGM")
+    st.caption("Breakdown komponen biaya yang membentuk COGM.")
 
     df_c = waterfall_cogm(breakdown)
     if df_c.empty:
@@ -216,8 +202,7 @@ def _render_waterfall(cogm_kpi, breakdown):
         return
 
     fig = go.Figure(go.Waterfall(
-        name="COGM",
-        orientation="v",
+        name="COGM", orientation="v",
         measure=["relative"] * len(df_c) + ["total"],
         x=list(df_c["Category"]) + ["<b>COGM Total</b>"],
         y=list(df_c["Cost"]) + [df_c["Cost"].sum()],
@@ -235,24 +220,18 @@ def _render_waterfall(cogm_kpi, breakdown):
     fig = apply_theme(fig, height=520)
     fig.update_layout(
         showlegend=False,
-        yaxis=dict(
-            title=dict(text="<b>Nilai (Rp)</b>", font=dict(size=12)),
-            tickformat=",.0f",
-            tickfont=dict(size=10),
-        ),
-        xaxis=dict(
-            title=dict(text="<b>Komponen Biaya</b>", font=dict(size=12)),
-            tickfont=dict(size=11),
-        ),
+        yaxis=dict(title=dict(text="<b>Nilai (Rp)</b>", font=dict(size=12)),
+                   tickformat=",.0f", tickfont=dict(size=10)),
+        xaxis=dict(title=dict(text="<b>Komponen Biaya</b>", font=dict(size=12)),
+                   tickfont=dict(size=11)),
         margin=dict(t=60, b=80, l=80, r=40),
     )
     st.plotly_chart(fig, use_container_width=True)
 
 
-# ==================== KOMPOSISI ====================
 def _render_composition(cogm_kpi, breakdown):
-    st.markdown("### 🥧 Komposisi Biaya")
-    st.caption("Distribusi porsi setiap komponen terhadap COGM total.")
+    st.markdown("#### 🥧 Komposisi Biaya")
+    st.caption("Distribusi porsi setiap komponen terhadap COGM.")
 
     df_c = pd.DataFrame(
         list(breakdown.items()), columns=["Komponen", "Nilai"]
@@ -272,9 +251,23 @@ def _render_composition(cogm_kpi, breakdown):
     st.plotly_chart(fig, use_container_width=True)
 
 
+def _render_detail_table(breakdown):
+    with st.expander("📋 Lihat detail komponen biaya"):
+        total = sum(breakdown.values())
+        rows = []
+        for cat, val in sorted(breakdown.items(), key=lambda x: -x[1]):
+            pct = val / total * 100 if total else 0
+            rows.append({
+                "Komponen": cat,
+                "Nilai (Rp)": f"Rp {val:,.0f}",
+                "Porsi (%)": f"{pct:.1f}%",
+            })
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+
 # ==================== VARIANCE DECOMPOSITION ====================
 def _render_variance_decomposition(ds, scope):
-    st.markdown("### 🔍 Variance Decomposition")
+    st.markdown("#### 🔍 Variance Decomposition")
     st.caption("Urai perubahan COGM jadi harga, volume, mix, dan efisiensi.")
 
     periods = _periods(ds.raw_material)
@@ -282,11 +275,19 @@ def _render_variance_decomposition(ds, scope):
         st.info("Butuh minimal **2 periode** di kolom **Period** sheet Raw_Material.")
         return None
 
+    partials = detect_partial_periods(ds.production)
+
     c1, c2 = st.columns(2)
     p_prev = c1.selectbox("Periode Sebelumnya", periods,
                           index=max(0, len(periods) - 2), key="dna_prev_v2")
     p_curr = c2.selectbox("Periode Sekarang", periods,
                           index=len(periods) - 1, key="dna_curr_v2")
+
+    # Warning kalau salah satu partial
+    if p_prev in partials:
+        partial_warning_banner({p_prev}, ds.production)
+    if p_curr in partials:
+        partial_warning_banner({p_curr}, ds.production)
 
     if p_prev == p_curr:
         st.warning("Pilih periode yang berbeda.")
@@ -308,10 +309,8 @@ def _render_variance_decomposition(ds, scope):
 
     cogm_prev = prev["Cost"].sum() if "Cost" in prev.columns else 0
     cogm_curr = curr["Cost"].sum() if "Cost" in curr.columns else 0
-
     is_up = dec.total > 0
 
-    # --- Header Metric (glass) ---
     m1, m2, m3 = st.columns(3)
     _glass_metric(m1, f"COGM {p_prev}", _fmt_rp(cogm_prev),
                   accent="#94A3B8", note=f"Rp {cogm_prev:,.0f}")
@@ -326,8 +325,8 @@ def _render_variance_decomposition(ds, scope):
 
     st.markdown("")
 
-    # --- Waterfall Variance ---
-    st.markdown("#### 🌊 Waterfall Variance")
+    # Waterfall Variance
+    st.markdown("##### 🌊 Waterfall Variance")
     st.caption(f"Dari COGM {p_prev} → kontribusi tiap komponen → COGM {p_curr}.")
 
     components = [
@@ -374,8 +373,8 @@ def _render_variance_decomposition(ds, scope):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- Pie Kontribusi + Tabel ---
-    st.markdown("#### 🥧 Kontribusi Tiap Komponen")
+    # Pie Kontribusi
+    st.markdown("##### 🥧 Kontribusi Tiap Komponen")
     st.caption("Porsi pengaruh masing-masing komponen terhadap total perubahan.")
 
     df_pie = pd.DataFrame([
@@ -422,8 +421,8 @@ def _render_variance_decomposition(ds, scope):
             use_container_width=True, hide_index=True,
         )
 
-    # --- Detail per Material ---
-    st.markdown("#### 📋 Detail Perubahan per Material")
+    # Detail per Material
+    st.markdown("##### 📋 Detail Perubahan per Material")
     st.caption("Material mana yang paling berkontribusi terhadap perubahan?")
 
     if "Material" in prev.columns and "Material" in curr.columns:
@@ -451,7 +450,7 @@ def _render_variance_decomposition(ds, scope):
         })
         st.dataframe(display, use_container_width=True, hide_index=True)
 
-    # --- Penyebab Utama (dark banner) ---
+    # Penyebab Utama
     top_k, top_v = max(dec.as_dict().items(), key=lambda kv: abs(kv[1]))
     pct = abs(top_v) / abs(dec.total) * 100 if dec.total else 0
 
@@ -468,44 +467,75 @@ def _render_variance_decomposition(ds, scope):
     return dec
 
 
-def _render_detail_table(breakdown):
-    with st.expander("📋 Lihat detail komponen biaya"):
-        total = sum(breakdown.values())
-        rows = []
-        for cat, val in sorted(breakdown.items(), key=lambda x: -x[1]):
-            pct = val / total * 100 if total else 0
-            rows.append({
-                "Komponen": cat,
-                "Nilai (Rp)": f"Rp {val:,.0f}",
-                "Porsi (%)": f"{pct:.1f}%",
-            })
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-
 # ==================== MAIN RENDER ====================
 def render(ds: Dataset, scope: Scope) -> None:
     _inject_css()
 
-    st.title("🧬 Cost DNA Engine")
-    st.caption(
-        "Analisis mengapa biaya berubah: urai variance menjadi "
-        "**harga**, **volume**, **mix produk**, dan **efisiensi**."
+    # ===== HEADER =====
+    page_header(
+        title="Cost DNA Engine",
+        subtitle=(
+            f"Sumber: {ds.report.source_label} · "
+            f"Analisis mengapa biaya berubah (harga, volume, mix, efisiensi)"
+        ),
+        granularity="Multi",
+        period_label=format_period_label(scope),
+        icon="🧬",
     )
 
     if ds.costs is None or ds.costs.empty:
         st.warning("Data biaya tidak tersedia.")
         return
 
-    cogm_kpi, breakdown = cogm_for_scope(ds.costs, ds.production, scope)
+    # ===== MINI HEALTH SCORE =====
+    targets = _active_targets()
+    try:
+        summary = summarize(ds, scope)
+        score, status, color = compute_health_score(summary, targets)
+        mini_health_score(score, status, color)
+    except Exception:
+        pass
+
+    # ===== SECTION 1: TOTAL COGM =====
+    section_divider(
+        title="Total COGM",
+        subtitle="Pilih periode di bawah untuk lihat breakdown bulan tertentu.",
+        icon="📊",
+        badge="TOTAL",
+        color="#8B5CF6",
+        bg1="#F5F3FF",
+        bg2="#FFFFFF",
+    )
+
+    # ===== PERIOD SELECTOR =====
+    selected_period, periods, partials = period_selector(
+        ds, key="dna_period_selector",
+    )
+
+    # Warning kalau partial
+    if selected_period and selected_period in partials:
+        partial_warning_banner({selected_period}, ds.production)
+
+    st.markdown("")
+
+    # ===== FILTER DATA SESUAI PERIODE =====
+    costs_f, prod_f = filter_dataset_by_period(ds, selected_period)
+
+    # Hitung COGM
+    cogm_kpi, breakdown = cogm_for_scope(costs_f, prod_f, scope)
 
     if not cogm_kpi.available or not breakdown:
         st.info(f"COGM tidak dapat dihitung: {cogm_kpi.note}")
         return
 
-    # Hitung variance untuk KPI card
+    # ===== PROYEKSI (kalau partial) =====
+    if selected_period and selected_period in partials:
+        proj = project_month_end_cogm(costs_f, prod_f, selected_period)
+        render_projection_card(proj)
+
+    # ===== HITUNG VARIANCE UNTUK KPI CARD =====
     dec_for_kpi = None
-    periods = _periods(ds.raw_material)
-    if len(periods) >= 2:
+    if len(periods) >= 2 and selected_period is None:
         rm = ds.raw_material
         p_prev, p_curr = periods[-2], periods[-1]
         prev = rm[rm["Period"] == p_prev] if "Period" in rm.columns else pd.DataFrame()
@@ -513,22 +543,30 @@ def render(ds: Dataset, scope: Scope) -> None:
         if not prev.empty and not curr.empty:
             dec_for_kpi = _cached_decompose(curr, prev, scope.plant)
 
-    # 1. KPI Cards
+    # KPI Cards
     _render_kpi_cards(cogm_kpi, breakdown, dec_for_kpi)
-    st.markdown("---")
 
-    # 2. Waterfall + Composition side by side
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
+    # Waterfall + Composition
     col_left, col_right = st.columns([1.6, 1])
     with col_left:
         _render_waterfall(cogm_kpi, breakdown)
     with col_right:
         _render_composition(cogm_kpi, breakdown)
 
-    st.markdown("---")
-
-    # 3. Variance Decomposition
-    _render_variance_decomposition(ds, scope)
-    st.markdown("---")
-
-    # 4. Detail Table
+    st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
     _render_detail_table(breakdown)
+
+    # ===== SECTION 2: VARIANCE BULANAN =====
+    section_divider(
+        title="Variance Bulanan",
+        subtitle="Perbandingan bulan-ke-bulan. Urai perubahan COGM jadi harga, volume, mix, efisiensi.",
+        icon="📆",
+        badge="BULANAN",
+        color="#8B5CF6",
+        bg1="#F5F3FF",
+        bg2="#FFFFFF",
+    )
+
+    _render_variance_decomposition(ds, scope)
