@@ -327,9 +327,111 @@ footer { visibility: hidden; }
     padding-bottom: 3rem;
     max-width: 1400px;
 }
+/* ============================================
+   SIDEBAR PREMIUM
+   ============================================ */
+[data-testid="stSidebar"] [data-testid="stExpander"] details > summary p,
+[data-testid="stSidebar"] [data-testid="stExpander"] details > summary span {
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 1.5px !important;
+}
+
+/* Sidebar header user profile */
+.sb-user-card {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    backdrop-filter: blur(8px);
+}
+.sb-avatar {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 800; font-size: 1.05rem;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.5);
+    flex-shrink: 0;
+}
+.sb-user-info { flex: 1; min-width: 0; }
+.sb-user-name {
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 0.92rem;
+    line-height: 1.2;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sb-user-role {
+    color: #A78BFA;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Sidebar section header */
+.sb-section-header {
+    color: #A78BFA;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    margin: 18px 0 10px 4px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.25);
+    position: relative;
+}
+.sb-section-header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0;
+    width: 40px; height: 2px;
+    background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
+    border-radius: 2px;
+}
+
+/* Nav button active — indikator kiri */
+[data-testid="stSidebar"] [data-testid="baseButton-primary"] {
+    position: relative;
+    padding-left: 20px !important;
+}
+[data-testid="stSidebar"] [data-testid="baseButton-primary"]::before {
+    content: '';
+    position: absolute;
+    left: 4px; top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 60%;
+    background: #FFFFFF;
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}
+
+/* Nav button hover — glow */
+[data-testid="stSidebar"] [data-testid="baseButton-secondary"]:hover {
+    transform: translateX(3px);
+    background: linear-gradient(90deg, #6D28D9 0%, #7C3AED 100%) !important;
+    border-color: #A78BFA !important;
+}
+
+/* Expander summary — collapse animation smooth */
+[data-testid="stSidebar"] details > summary {
+    transition: all 0.2s ease !important;
+}
+
 </style>
 """
-
 
 def inject() -> None:
     st.markdown(CSS, unsafe_allow_html=True)

@@ -137,39 +137,47 @@ def _load_demo() -> Dataset:
 # ==================== SIDEBAR ====================
 
 role = st.session_state["role"]
-st.sidebar.title("🎛 Control Panel")
-st.sidebar.markdown(f"👤 **User:** `{st.session_state['username']}`")
-st.sidebar.markdown(f"🛡 **Role:** `{role}`")
-if st.sidebar.button("🚪 Keluar / Logout"):
+username = st.session_state["username"]
+
+# ==================== SIDEBAR — USER PROFILE ====================
+initial = (username or "U").strip()[0].upper()
+role_short = ("Director" if "Director" in role else
+              "Manager" if "Manager" in role else "User")
+
+st.sidebar.markdown(f"""
+<div class="sb-user-card">
+    <div class="sb-avatar">{initial}</div>
+    <div class="sb-user-info">
+        <div class="sb-user-name">{username}</div>
+        <div class="sb-user-role">● {role_short}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+if st.sidebar.button("🚪  Keluar / Logout", use_container_width=True,
+                     key="logout_btn"):
     auth.logout()
-st.sidebar.markdown("---")
 
-# ---------- NAVIGASI DENGAN EXPANDER (COLLAPSIBLE) ----------
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🧭 Navigation")
+# ==================== SIDEBAR — NAVIGATION ====================
+st.sidebar.markdown('<div class="sb-section-header">🧭 Navigation</div>',
+                    unsafe_allow_html=True)
 
-# Init menu di session state
 if "menu" not in st.session_state or st.session_state["menu"] is None:
     st.session_state["menu"] = "Dashboard"
 
 role_menus = auth.ROLE_MENUS[role]
 menu = st.session_state["menu"]
 
-# Render tiap kategori sebagai expander (collapsible)
+# Render tiap kategori sebagai expander
 for category, items in role_menus.items():
-    # Cek apakah kategori ini punya menu aktif
     has_active = menu in items
-
-    # Label dengan indikator bulat kalau ada active
     expander_label = f"{category}" + ("  ●" if has_active else "")
 
-    # Default: expanded kalau ada active, collapsed kalau tidak
     with st.sidebar.expander(expander_label, expanded=has_active):
         for item in items:
             is_active = (menu == item)
-
-            # Label dengan prefix ▶ untuk active
-            label = f"▶  {item}" if is_active else f"     {item}"
+            icon = auth.ICON_MAP.get(item, "▫️")
+            label = f"{icon}  {item}" if is_active else f"　{icon}  {item}"
 
             if st.button(
                 label,

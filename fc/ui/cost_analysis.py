@@ -10,8 +10,111 @@ from ..pipeline import Dataset
 from .charts import CATEGORY_COLORS, COLORS, apply_theme, pie_chart
 
 
+# ==================== CSS GLASSMORPHISM ====================
+GLASS_CSS = """
+<style>
+.ca-glass {
+    position: relative;
+    background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
+    border: 1px solid rgba(196, 181, 253, 0.5);
+    border-radius: 16px;
+    padding: 18px 20px;
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    min-height: 108px;
+    margin-bottom: 8px;
+}
+.ca-glass::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent, #8B5CF6) 0%, #EC4899 100%);
+}
+.ca-glass:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 32px rgba(139, 92, 246, 0.18);
+    border-color: rgba(139, 92, 246, 0.6);
+}
+.ca-glass-label {
+    color: #6D28D9;
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 6px;
+}
+.ca-glass-value {
+    color: #0F172A;
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+.ca-glass-note {
+    color: #94A3B8;
+    font-size: 0.68rem;
+    font-style: italic;
+    line-height: 1.3;
+}
+.ca-glass-delta {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+/* Top Component Banner */
+.top-banner {
+    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
+    border-radius: 16px;
+    padding: 22px 28px;
+    color: white;
+    box-shadow: 0 12px 32px rgba(30, 27, 75, 0.25);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+.top-banner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #F59E0B 0%, #EC4899 100%);
+}
+.top-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #FBBF24;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.top-title {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #FFFFFF;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin-bottom: 8px;
+}
+.top-desc {
+    font-size: 0.92rem;
+    color: #C4B5FD;
+}
+.top-desc strong { color: #FBBF24; }
+</style>
+"""
+
+
+def _inject_css():
+    st.markdown(GLASS_CSS, unsafe_allow_html=True)
+
+
+# ==================== HELPERS ====================
 def _fmt_rp(v: float) -> str:
-    """Format Rupiah singkat."""
     if abs(v) >= 1_000_000_000:
         return f"Rp {v/1_000_000_000:.2f} M"
     if abs(v) >= 1_000_000:
@@ -19,37 +122,84 @@ def _fmt_rp(v: float) -> str:
     return f"Rp {v:,.0f}"
 
 
+@st.cache_data(show_spinner=False)
+def _cached_cogm(_costs, _production, plant, line, start, end):
+    """Cache hasil COGM untuk filter yang sama."""
+    scope = Scope(plant, line, start, end)
+    return cogm_for_scope(_costs, _production, scope)
+
+
+def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
+                note: str = None, delta: str = None,
+                delta_color: str = None) -> None:
+    note_html = f'<div class="ca-glass-note">{note}</div>' if note else ""
+    delta_html = ""
+    if delta:
+        c = delta_color or "#10B981"
+        delta_html = f'<div class="ca-glass-delta" style="color:{c};">{delta}</div>'
+    html = (
+        f'<div class="ca-glass" style="--accent: {accent};">'
+        f'<div class="ca-glass-label">{label}</div>'
+        f'<div class="ca-glass-value">{value}</div>'
+        f'{delta_html}'
+        f'{note_html}'
+        f'</div>'
+    )
+    col.markdown(html, unsafe_allow_html=True)
+
+
+# ==================== KPI CARDS ====================
 def _render_kpi(cogm_kpi, cpk, output_kg, targets, breakdown):
-    """KPI cards di atas."""
     st.markdown("### 💰 Ringkasan Biaya")
 
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric("Total COGM", _fmt_rp(cogm_kpi.value),
-              help=f"Rp {cogm_kpi.value:,.0f}")
+    _glass_card(c1, "Total COGM", _fmt_rp(cogm_kpi.value),
+                accent="#8B5CF6", note=f"Rp {cogm_kpi.value:,.0f}")
 
-    c2.metric("Output", f"{output_kg:,.0f} Kg")
+    _glass_card(c2, "Output", f"{output_kg:,.0f} Kg",
+                accent="#3B82F6", note="Total produksi terfilter")
 
     if cpk.available:
-        delta_color = "inverse" if (targets.max_cost_per_kg > 0
-                                     and cpk.value > targets.max_cost_per_kg) else "normal"
-        c3.metric("Cost/Kg", f"Rp {cpk.value:,.0f}",
-                  delta=(f"Batas Rp {targets.max_cost_per_kg:,.0f}"
-                         if targets.max_cost_per_kg > 0 else None),
-                  delta_color=delta_color)
+        over = (targets.max_cost_per_kg > 0
+                and cpk.value > targets.max_cost_per_kg)
+        delta_txt = (f"Batas Rp {targets.max_cost_per_kg:,.0f}"
+                     if targets.max_cost_per_kg > 0 else None)
+        _glass_card(c3, "Cost/Kg", f"Rp {cpk.value:,.0f}",
+                    accent="#EC4899", delta=delta_txt,
+                    delta_color=("#EF4444" if over else "#10B981"))
     else:
-        c3.metric("Cost/Kg", "—")
-        c3.caption(cpk.note)
+        _glass_card(c3, "Cost/Kg", "—", accent="#94A3B8", note=cpk.note)
 
     if breakdown:
-        top_cat = max(breakdown.items(), key=lambda kv: kv[1])
-        c4.metric("Komponen Terbesar", top_cat[0],
-                  delta=f"{_fmt_rp(top_cat[1])}",
-                  delta_color="off")
+        top_cat, top_val = max(breakdown.items(), key=lambda kv: kv[1])
+        _glass_card(c4, "Komponen Terbesar", top_cat,
+                    accent="#F59E0B", note=_fmt_rp(top_val))
+    else:
+        _glass_card(c4, "Komponen Terbesar", "—", accent="#94A3B8")
 
 
+# ==================== TOP BANNER ====================
+def _render_top_banner(breakdown):
+    if not breakdown:
+        return
+    top_cat, top_val = max(breakdown.items(), key=lambda kv: kv[1])
+    total = sum(breakdown.values())
+    pct = (top_val / total * 100) if total else 0
+
+    st.markdown(f"""
+    <div class="top-banner">
+        <div class="top-label">🏆 Komponen Biaya Terbesar</div>
+        <div class="top-title">{top_cat}</div>
+        <div class="top-desc">
+            Kontribusi <strong>{_fmt_rp(top_val)}</strong> ({pct:.1f}% dari total COGM)
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ==================== COGM BREAKDOWN ====================
 def _render_cogm_breakdown(breakdown):
-    """Pie + table komponen COGM."""
     st.markdown("### 🥧 Komposisi COGM")
     st.caption("Distribusi setiap komponen biaya terhadap COGM total.")
 
@@ -82,14 +232,12 @@ def _render_cogm_breakdown(breakdown):
         st.markdown("**Detail Komponen:**")
         st.dataframe(
             df_display[["Komponen", "Nilai (Rp)", "Porsi (%)"]],
-            use_container_width=True,
-            hide_index=True,
-            height=380,
+            use_container_width=True, hide_index=True, height=380,
         )
 
 
+# ==================== PARETO ====================
 def _render_pareto(ds, scope):
-    """Pareto Material Top 10 dengan bar + cumulative line."""
     st.markdown("### 📊 Pareto Material Top 10")
     st.caption("Aturan 80/20: 20% material = 80% biaya. Fokus negosiasi di sini.")
 
@@ -107,8 +255,7 @@ def _render_pareto(ds, scope):
 
     top = (rm.groupby("Material", as_index=False)["Cost"].sum()
              .sort_values("Cost", ascending=False)
-             .head(10)
-             .reset_index(drop=True))
+             .head(10).reset_index(drop=True))
 
     total_cost = top["Cost"].sum()
     top["Cumulative_Pct"] = (top["Cost"].cumsum() / total_cost * 100)
@@ -116,11 +263,8 @@ def _render_pareto(ds, scope):
 
     fig = go.Figure()
 
-    # Bar
     fig.add_trace(go.Bar(
-        x=top["Material"],
-        y=top["Cost_Jt"],
-        name="Cost (Rp jt)",
+        x=top["Material"], y=top["Cost_Jt"], name="Cost (Rp jt)",
         marker=dict(color=COLORS["primary"], line=dict(width=0)),
         text=[f"<b>Rp {c:,.0f} jt</b>" for c in top["Cost_Jt"]],
         textposition="outside",
@@ -130,11 +274,8 @@ def _render_pareto(ds, scope):
         yaxis="y",
     ))
 
-    # Cumulative line
     fig.add_trace(go.Scatter(
-        x=top["Material"],
-        y=top["Cumulative_Pct"],
-        name="Cumulative (%)",
+        x=top["Material"], y=top["Cumulative_Pct"], name="Cumulative (%)",
         mode="lines+markers",
         line=dict(color=COLORS["accent"], width=3),
         marker=dict(size=9, color=COLORS["accent"],
@@ -154,30 +295,19 @@ def _render_pareto(ds, scope):
     fig.update_layout(
         showlegend=True,
         legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center"),
-        xaxis=dict(
-            title=dict(text="<b>Material</b>", font=dict(size=12)),
-            tickfont=dict(size=10),
-            tickangle=-30,
-        ),
-        yaxis=dict(
-            title=dict(text="<b>Cost (Rp jt)</b>", font=dict(size=12)),
-            tickfont=dict(size=10, color=COLORS["primary"]),
-            title_font=dict(color=COLORS["primary"]),
-        ),
-        yaxis2=dict(
-            title=dict(text="<b>Cumulative (%)</b>", font=dict(size=12)),
-            tickfont=dict(size=10, color=COLORS["accent"]),
-            title_font=dict(color=COLORS["accent"]),
-            overlaying="y",
-            side="right",
-            range=[0, 105],
-            showgrid=False,
-        ),
+        xaxis=dict(title=dict(text="<b>Material</b>", font=dict(size=12)),
+                   tickfont=dict(size=10), tickangle=-30),
+        yaxis=dict(title=dict(text="<b>Cost (Rp jt)</b>", font=dict(size=12)),
+                   tickfont=dict(size=10, color=COLORS["primary"]),
+                   title_font=dict(color=COLORS["primary"])),
+        yaxis2=dict(title=dict(text="<b>Cumulative (%)</b>", font=dict(size=12)),
+                    tickfont=dict(size=10, color=COLORS["accent"]),
+                    title_font=dict(color=COLORS["accent"]),
+                    overlaying="y", side="right", range=[0, 105], showgrid=False),
         margin=dict(t=40, b=120, l=70, r=70),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # Insight
     above_80 = (top["Cumulative_Pct"] <= 80).sum() + 1
     st.info(
         f"💡 **Insight:** {above_80} dari {len(top)} material teratas "
@@ -186,8 +316,8 @@ def _render_pareto(ds, scope):
     )
 
 
+# ==================== COST/KG TREND ====================
 def _render_cost_kg_trend(ds, scope):
-    """Trend Cost/Kg per bulan."""
     st.markdown("### 📈 Trend Cost/Kg per Bulan")
     st.caption("Apakah biaya per Kg naik atau turun dari waktu ke waktu?")
 
@@ -198,7 +328,6 @@ def _render_cost_kg_trend(ds, scope):
 
     c = costs.copy()
     c = c[c["Period"].notna()]
-
     if scope.plant and "Plant" in c.columns:
         c = c[c["Plant"].eq(scope.plant).fillna(False)]
 
@@ -206,10 +335,7 @@ def _render_cost_kg_trend(ds, scope):
         st.info("Tidak ada data biaya per periode pada filter ini.")
         return
 
-    # Aggregate cost by period
     cost_by_period = c.groupby("Period", as_index=False)["Cost"].sum()
-
-    # Aggregate output by period
     prod = scope_production(ds.production, scope)
     if prod.empty or "Date" not in prod.columns:
         st.info("Tidak ada data produksi.")
@@ -220,7 +346,6 @@ def _render_cost_kg_trend(ds, scope):
     prod_copy["Period"] = prod_copy["Date"].dt.strftime("%Y-%m")
     output_by_period = prod_copy.groupby("Period", as_index=False)["Output_Kg"].sum()
 
-    # Merge
     merged = cost_by_period.merge(output_by_period, on="Period", how="inner")
     if merged.empty:
         st.info("Tidak dapat match periode biaya & produksi.")
@@ -233,30 +358,20 @@ def _render_cost_kg_trend(ds, scope):
         st.info("Cost/Kg tidak dapat dihitung.")
         return
 
-    # Bar chart Cost/Kg per period
     fig = go.Figure(go.Bar(
-        x=merged["Period"],
-        y=merged["Cost_Per_Kg"],
+        x=merged["Period"], y=merged["Cost_Per_Kg"],
         marker=dict(
             color=merged["Cost_Per_Kg"],
-            colorscale=[
-                [0, COLORS["success"]],
-                [0.5, COLORS["warning"]],
-                [1, COLORS["danger"]],
-            ],
+            colorscale=[[0, COLORS["success"]], [0.5, COLORS["warning"]], [1, COLORS["danger"]]],
             line=dict(width=0),
         ),
         text=[f"<b>Rp {v:,.0f}</b>" for v in merged["Cost_Per_Kg"]],
         textposition="outside",
         textfont=dict(size=11, color=COLORS["text"], family="Inter"),
         cliponaxis=False,
-        hovertemplate=(
-            "<b>%{x}</b><br>"
-            "Cost/Kg: Rp %{y:,.0f}<extra></extra>"
-        ),
+        hovertemplate="<b>%{x}</b><br>Cost/Kg: Rp %{y:,.0f}<extra></extra>",
     ))
 
-    # AVG line
     avg = merged["Cost_Per_Kg"].mean()
     fig.add_hline(
         y=avg, line_dash="dash", line_color=COLORS["primary_dark"], line_width=2,
@@ -275,7 +390,10 @@ def _render_cost_kg_trend(ds, scope):
     st.plotly_chart(fig, use_container_width=True)
 
 
+# ==================== MAIN RENDER ====================
 def render(ds: Dataset, scope: Scope) -> None:
+    _inject_css()
+
     st.title("💰 Cost Analysis")
     st.caption("Analisis COGM, Pareto material, dan trend Cost/Kg.")
 
@@ -284,7 +402,10 @@ def render(ds: Dataset, scope: Scope) -> None:
         return
 
     targets = targets_from_config(ds.config)
-    cogm_kpi, breakdown = cogm_for_scope(ds.costs, ds.production, scope)
+    cogm_kpi, breakdown = _cached_cogm(
+        ds.costs, ds.production,
+        scope.plant, scope.line, scope.start, scope.end,
+    )
     prod = scope_production(ds.production, scope)
     output_kg = float(prod["Output_Kg"].sum()) if len(prod) else 0.0
 
@@ -294,20 +415,23 @@ def render(ds: Dataset, scope: Scope) -> None:
 
     cpk = cost_per_kg(cogm_kpi, output_kg)
 
-    # 1. KPI cards
+    # 1. KPI Cards
     _render_kpi(cogm_kpi, cpk, output_kg, targets, breakdown)
+
+    # 2. Banner komponen terbesar
+    _render_top_banner(breakdown)
 
     st.markdown("---")
 
-    # 2. COGM Breakdown
+    # 3. COGM Breakdown
     if breakdown:
         _render_cogm_breakdown(breakdown)
         st.markdown("---")
 
-    # 3. Pareto Material
+    # 4. Pareto Material
     _render_pareto(ds, scope)
 
     st.markdown("---")
 
-    # 4. Cost/Kg trend
+    # 5. Cost/Kg trend
     _render_cost_kg_trend(ds, scope)
