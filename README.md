@@ -1,54 +1,121 @@
-# Decidiq — Tahap 1A (Fondasi Data & KPI)
+5. Browser akan terbuka otomatis ke `http://localhost:8501`
+6. Di sidebar, pilih **"📤 Unggah Excel"** dan upload file data pabrik Anda
 
-Lapisan analitik **read-only**: membaca data dari Excel (Google Sheets, Odoo, SAP/QAD menyusul),
-memvalidasi, lalu menghitung KPI dengan rumus resmi BRD bagian 6.
+> 💡 **Belum punya file Excel?** Klik tombol **Download Template** di aplikasi — kami sediakan template Excel siap pakai dengan 11 sheet lengkap.
 
-## Menjalankan
-```bash
-pip install -r requirements.txt
-streamlit run app.py            # pilih "Mode Demo" atau arahkan ke file Excel Anda
-python -m unittest discover -s tests -t .   # 35 uji otomatis (tidak butuh Streamlit)
-```
-Untuk mencoba tanpa data sendiri: pilih **Mode Demo**, atau **File Excel** dengan path
-`sample/factory_data_demo.xlsx`. Login sementara: username apa saja, pilih role.
+---
 
-## Struktur
-```
-app.py                  entry point Streamlit (sidebar, filter, routing)
-fc/config.py            target & ambang KPI (satu tempat untuk diubah)
-fc/schema.py            kamus data (BRD 5.4): sheet, kolom, tipe, satuan, level wajib
-fc/validation.py        aturan validasi (BRD 5.5), laporan temuan + nomor baris Excel
-fc/connectors/          konektor hanya-baca: excel.py, memory.py (base.py = kontrak)
-fc/pipeline.py          konektor -> validasi -> Dataset
-fc/kpi.py               rumus KPI (BRD 6) - fungsi murni, tanpa Streamlit
-fc/demo.py              data contoh untuk Mode Demo
-fc/ui/                  tampilan: dashboard, kualitas data, styles, auth (SEMENTARA)
-tests/                  uji otomatis
-```
+## 📋 Apa yang Dibutuhkan?
 
-## Pemetaan BRD -> kode
-| BRD | Implementasi |
-|---|---|
-| 5.1 Konektor hanya-baca | `fc/connectors/` (Excel; konektor lain cukup implement `read_all()`) |
-| 5.4 Kamus data | `fc/schema.py` + halaman **Kualitas Data** |
-| 5.5 Validasi & tanpa data dummy | `fc/validation.py`, `fc/pipeline.py`; data contoh hanya di **Mode Demo** (berlabel) |
-| 6 Rumus KPI | `fc/kpi.py` (COGM, Cost/Kg, Yield, Scrap, OEE, Variance, Days Inventory, Risk, Controller Score) |
-| 6.2 Ambang alert | `fc/config.py` |
+### Data Excel Anda
+Cukup siapkan file Excel dengan data pabrik Anda. Format paling minimal:
 
-## Kolom baru yang disarankan pada Excel Anda
-File lama tetap terbaca. Kolom di bawah membuat KPI tertentu aktif; tanpa kolom itu KPI
-menampilkan "Data tidak tersedia" (bukan angka tebakan).
+| Sheet | Isi | Contoh Kolom |
+|:---|:---|:---|
+| **Production** | Data produksi harian | Tanggal, Mesin, Output (Kg) |
+| **Raw_Material** | Biaya material | Material, Biaya, Qty |
 
-| Sheet | Kolom | Mengaktifkan |
-|---|---|---|
-| Production | `Input_Kg` | Yield, Scrap |
-| Production | `Scrap_Kg` | Scrap akurat, OEE (Quality) |
-| Production | `Planned_Time_Min`, `Downtime_Min`, `Ideal_Rate_Kg_per_Min` | OEE |
-| Production | `Plant` | Filter Plant |
-| Semua sheet biaya | `Plant`, `Period` (YYYY-MM) | Cost/Kg per Plant dan per periode |
+**Sheet tambahan (opsional):** Packaging, Direct_Labor, Utility, Maintenance, Depreciation, Budget, Inventory, Risk_Register — semua akan otomatis diintegrasikan kalau tersedia.
 
-## Belum termasuk (sesuai rencana)
-- Login/hak akses nyata, database & audit trail permanen (modul `fc/ui/auth.py` masih sementara).
-- Konektor Google Sheets, Odoo, SAP/QAD.
-- Migrasi halaman lain (Production, Cost, Variance, Inventory, Risk, Executive Report, Copilot).
-  Fungsi hitungnya sudah ada di `fc/kpi.py`; halaman lama di `dashboard.py` tetap bisa dipakai sementara.
+### Sistem Komputer
+- Windows 10/11, macOS, atau Linux
+- Python 3.11 atau lebih baru
+- Browser modern (Chrome, Edge, Firefox)
+- RAM minimal 4 GB
+
+---
+
+## ✨ Fitur Lengkap
+
+<details>
+<summary><b>📊 Analytics & Reporting</b> (klik untuk buka)</summary>
+
+- **Decision Intelligence Dashboard** — semua KPI dalam satu layar
+- **Production Analysis** — tren output, Yield, Scrap, OEE per line
+- **Cost Analysis** — komposisi biaya, Pareto material, tren Cost/Kg
+- **Cost DNA Engine** — lacak penyebab kenaikan biaya
+- **Manufacturing Variance** — Budget vs Actual per kategori
+- **Multi-Plant Analysis** — konsolidasi lintas pabrik
+- **Inventory Analysis** — deteksi slow-moving & dead stock
+- **Risk Register** — peta risiko dengan heat map interaktif
+
+</details>
+
+<details>
+<summary><b>🤖 Fitur Cerdas (AI)</b> (klik untuk buka)</summary>
+
+- **Predictive Analytics** — forecast output & deteksi anomali
+- **What-If Simulator** — simulasi skenario dengan dampak real-time
+- **Recommendation Engine** — saran aksi dengan estimasi penghematan
+- **AI Copilot** — tanya data dalam bahasa Indonesia
+- **Institutional Memory** — sistem belajar dari keputusan Anda
+
+</details>
+
+<details>
+<summary><b>📋 Laporan & Governance</b> (klik untuk buka)</summary>
+
+- **Executive Report** — siap presentasi ke direksi (PDF/Excel/PPT)
+- **Kualitas Data** — validasi otomatis + kamus data
+- **Audit Trail** — catatan permanen semua aktivitas
+- **Pengaturan Target** — kelola target KPI tanpa coding
+
+</details>
+
+---
+
+## 🔒 Keamanan & Privasi
+
+- ✅ **Data Anda 100% milik Anda** — Decidiq tidak pernah mengirim data ke server kami
+- ✅ **Read-only** — file Excel Anda tidak pernah dimodifikasi
+- ✅ **Human-in-the-loop** — setiap rekomendasi butuh persetujuan manusia
+- ✅ **Audit permanen** — semua keputusan tercatat untuk governance
+- ✅ **Tanpa data palsu** — kalau data tidak ada, sistem jujur bilang "tidak tersedia"
+
+---
+
+## 🎯 Untuk Siapa Decidiq?
+
+| Cocok untuk | Manfaat Utama |
+|:---|:---|
+| **Direktur / GM** | Executive report otomatis + dashboard performa pabrik |
+| **Factory Manager** | Kontrol operasional, deteksi masalah, prediksi output |
+| **Finance Controller** | Analisis biaya, variance, cash recovery dari dead stock |
+| **Plant Controller** | Multi-plant konsolidasi + cost allocation |
+| **Tim Sales & Marketing** | Analisis performa produk & proyeksi pasar |
+
+---
+
+## 🗺️ Yang Akan Datang
+
+Kami terus mengembangkan Decidiq. Roadmap ke depan:
+
+- 🔌 **Konektor langsung** ke Google Sheets, Odoo, SAP
+- 🤖 **Multi-Agent AI** — agen pintar yang berkoordinasi lintas departemen
+- 📡 **IoT Integration** — baca data mesin secara real-time
+- 🔐 **Single Sign-On (SSO)** untuk enterprise
+- 📱 **Mobile app** untuk akses kapan saja
+
+---
+
+## 📞 Butuh Bantuan?
+
+- 🌐 **Website:** [decidiq.streamlit.app](https://decidiq.streamlit.app)
+- 📧 **Email:** support@decidiq.com
+- 💬 **Laporan bug / saran:** [buka Issue di sini](https://github.com/decidiq/ai-factory-controller/issues)
+
+---
+
+<div align="center">
+
+### Siap mengambil keputusan yang lebih cerdas?
+
+**[🚀 Coba Decidiq Sekarang — Gratis](https://decidiq.streamlit.app)**
+
+---
+
+*Decidiq — Smart Decisions, Delivered.*
+
+© 2026 Decidiq. Dibuat dengan ❤️ untuk industri manufaktur Indonesia.
+
+</div>
