@@ -12,7 +12,9 @@ from ..pipeline import Dataset
 from ..report.pdf_export import generate_pdf
 from ..report.excel_export import generate_excel
 from ..report.ppt_export import generate_ppt
-
+from .components import (page_header, mini_health_score,
+                         format_period_label, compute_health_score,
+                         section_divider)
 
 # ==================== CSS ====================
 EXEC_CSS = """
@@ -491,9 +493,27 @@ def render(ds: Dataset, scope: Scope) -> None:
     targets = _active_targets()
     s = summarize(ds, scope)
 
-    # Header
-    _render_header(ds, scope, targets)
+    # ===== HEADER KONSISTEN (menggantikan _render_header lama) =====
+    page_header(
+        title="Executive Report",
+        subtitle=(
+            f"Sumber: {ds.report.source_label} · "
+            f"Laporan eksekutif performa pabrik · "
+            f"Target: Yield ≥ {targets.yield_min:g}% · Scrap ≤ {targets.scrap_max:g}% · "
+            f"OEE ≥ {targets.oee_min:g}%"
+        ),
+        granularity="Multi",
+        period_label=format_period_label(scope),
+        icon="📋",
+    )
 
+    # ===== MINI HEALTH SCORE =====
+    try:
+        score, status, color = compute_health_score(s, targets)
+        mini_health_score(score, status, color)
+    except Exception:
+        pass
+    
     if ds.is_demo:
         st.warning("🧪 **DEMO DATA** — angka di bawah adalah data contoh.")
 

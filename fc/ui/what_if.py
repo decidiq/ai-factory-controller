@@ -3,8 +3,11 @@ import pandas as pd
 import streamlit as st
 
 from ..intel.what_if import Scenario, simulate
-from ..kpi import Scope, cogm_for_scope, scope_production
+from ..kpi import Scope, cogm_for_scope, scope_production, summarize
 from ..pipeline import Dataset
+from .components import (page_header, mini_health_score,
+                         format_period_label, compute_health_score,
+                         section_divider)
 
 
 # ==================== CSS GLASSMORPHISM ====================
@@ -69,6 +72,11 @@ def _inject_css():
     st.markdown(GLASS_CSS, unsafe_allow_html=True)
 
 
+def _active_targets():
+    from ..config import TARGETS as DEFAULT_TARGETS
+    return st.session_state.get("_targets") or DEFAULT_TARGETS
+
+
 def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
                 note: str = None, delta: str = None,
                 delta_color: str = None) -> None:
@@ -89,7 +97,6 @@ def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
 
 
 def _fmt_rp(v: float) -> str:
-    """Format Rupiah singkat."""
     if abs(v) >= 1_000_000_000:
         return f"Rp {v/1_000_000_000:.2f} M"
     if abs(v) >= 1_000_000:
@@ -97,33 +104,10 @@ def _fmt_rp(v: float) -> str:
     return f"Rp {v:,.0f}"
 
 
-# ==================== HEADER ====================
-def _render_header():
-    st.markdown("""
-    <div style="
-        background: linear-gradient(135deg, #1E1B4B 0%, #4C1D95 50%, #8B5CF6 100%);
-        color: #FFFFFF;
-        padding: 24px 30px;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.25);
-        margin-bottom: 24px;
-    ">
-        <div style="font-size: 0.75rem; letter-spacing: 1.5px; opacity: 0.85;
-            font-weight: 600; margin-bottom: 8px;">🎛 WHAT-IF SIMULATOR</div>
-        <div style="font-size: 1.7rem; font-weight: 800; letter-spacing: -0.8px;
-            line-height: 1.15;">Simulasikan skenario bisnis Anda</div>
-        <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 8px;">
-            Geser slider untuk melihat dampak langsung ke COGM & Cost/Kg.</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
 # ==================== BASELINE ====================
 def _render_baseline(prod, cogm_kpi, material_share):
     baseline_output = float(prod["Output_Kg"].sum()) if len(prod) else 0.0
     baseline_cogm = cogm_kpi.value if cogm_kpi.available else 0
-
-    st.markdown("### 📊 Baseline (Current State)")
 
     c1, c2, c3 = st.columns(3)
     _glass_card(c1, "Output Saat Ini", f"{baseline_output:,.0f} Kg",
@@ -138,7 +122,6 @@ def _render_baseline(prod, cogm_kpi, material_share):
 
 # ==================== SLIDERS ====================
 def _render_slider_panel():
-    st.markdown("### 🎚 Parameter Skenario")
     st.caption("Atur nilai untuk simulasi. Hasil berubah secara real-time.")
 
     c1, c2 = st.columns(2)
@@ -181,8 +164,6 @@ def _render_slider_panel():
 
 # ==================== RESULT ====================
 def _render_result(result, baseline_output, baseline_cogm):
-    st.markdown("### 🎯 Hasil Simulasi")
-
     savings = result.savings_annual
     if savings > 0:
         impact_icon = "💚"
@@ -261,7 +242,6 @@ def _render_result(result, baseline_output, baseline_cogm):
 
 # ==================== SAVE SCENARIO ====================
 def _render_scenario_save(current_scenario, result):
-    st.markdown("---")
     st.markdown("### 💾 Simpan Skenario")
     st.caption("Simpan kombinasi parameter untuk dibandingkan nanti.")
 
@@ -339,7 +319,17 @@ def _render_saved_scenarios():
 def render(ds: Dataset, scope: Scope) -> None:
     _inject_css()
 
-    _render_header()
+    # ===== HEADER KONSISTEN =====
+    page_header(
+        title="What-If Simulator",
+        subtitle=(
+            f"Sumber: {ds.report.source_label} · "
+            f"Simulasikan skenario bisnis & lihat dampaknya secara real-time"
+        ),
+        granularity="Multi",
+        period_label=format_period_label(scope),
+        icon="🎯",
+    )
 
     prod = scope_production(ds.production, scope)
     baseline_output = float(prod["Output_Kg"].sum()) if len(prod) else 0.0
@@ -352,9 +342,38 @@ def render(ds: Dataset, scope: Scope) -> None:
     baseline_cogm = cogm_kpi.value
     material_share = (breakdown.get("Material", 0) / baseline_cogm) if baseline_cogm else 0.6
 
+    # ===== MINI HEALTH SCORE =====
+    targets_default = _active_targets()
+    try:
+        s = summarize(ds, scope)
+        score, status, color = compute_health_score(s, targets_default)
+        mini_health_score(score, status, color)
+    except Exception:
+        pass
+
+    # ===== SECTION 1: BASELINE =====
+    section_divider(
+        title="Baseline (Kondisi Saat Ini)",
+        subtitle="Kondisi aktual sebelum simulasi. Acuan untuk perbandingan.",
+        icon="📊",
+        badge="BASELINE",
+        color="#8B5CF6",
+        bg1="#F5F3FF",
+        bg2="#FFFFFF",
+    )
+
     _, baseline_cogm_val = _render_baseline(prod, cogm_kpi, material_share)
 
-    st.markdown("---")
+    # ===== SECTION 2: PARAMETER SKENARIO =====
+    section_divider(
+        title="Parameter Skenario",
+        subtitle="Geser slider untuk simulasi perubahan. Hasil update secara real-time.",
+        icon="🎚️",
+        badge="INPUT",
+        color="#3B82F6",
+        bg1="#EFF6FF",
+        bg2="#FFFFFF",
+    )
 
     scenario = _render_slider_panel()
 
@@ -365,11 +384,29 @@ def render(ds: Dataset, scope: Scope) -> None:
         scenario=scenario,
     )
 
-    st.markdown("---")
+    # ===== SECTION 3: HASIL SIMULASI =====
+    section_divider(
+        title="Hasil Simulasi",
+        subtitle="Dampak skenario terhadap COGM, Cost/Kg, dan potensi cost saving.",
+        icon="🎯",
+        badge="OUTPUT",
+        color="#10B981",
+        bg1="#ECFDF5",
+        bg2="#FFFFFF",
+    )
 
     _render_result(result, baseline_output, baseline_cogm_val)
 
-    st.markdown("---")
+    # ===== SAVE SCENARIO =====
+    section_divider(
+        title="Kelola Skenario",
+        subtitle="Simpan, bandingkan, dan kelola skenario simulasi Anda.",
+        icon="💾",
+        badge="MANAGE",
+        color="#EC4899",
+        bg1="#FDF2F8",
+        bg2="#FFFFFF",
+    )
 
     _render_scenario_save(scenario, result)
     _render_saved_scenarios()

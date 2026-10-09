@@ -6,6 +6,9 @@ import streamlit as st
 from ..kpi import risk_table
 from ..pipeline import Dataset
 from .charts import COLORS, apply_theme
+from .components import (page_header, mini_health_score,
+                         format_period_label, compute_health_score,
+                         section_divider)
 
 
 # ==================== CSS GLASSMORPHISM ====================
@@ -63,7 +66,6 @@ GLASS_CSS = """
     letter-spacing: 0.3px;
 }
 
-/* Risk Level Banner */
 .rr-banner {
     background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
     border-radius: 16px;
@@ -107,7 +109,6 @@ GLASS_CSS = """
     color: #94A3B8;
 }
 
-/* Risk Card */
 .rr-risk-card {
     background: #FFFFFF;
     border: 1px solid #E9D5FF;
@@ -202,7 +203,6 @@ def _render_kpi(tbl):
     _glass_card(c4, "🟢 Rendah (<3)", str(low), "#10B981",
                 note="Terkendali")
 
-    # Banner distribusi
     if high > 0:
         html = (
             f'<div class="rr-banner">'
@@ -223,7 +223,6 @@ def _render_kpi(tbl):
             f'</div>'
             f'</div>'
         )
-        st.markdown(html, unsafe_allow_html=True)
     else:
         html = (
             f'<div class="rr-banner">'
@@ -244,7 +243,7 @@ def _render_kpi(tbl):
             f'</div>'
             f'</div>'
         )
-        st.markdown(html, unsafe_allow_html=True)
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # ==================== HEATMAP ====================
@@ -382,9 +381,43 @@ def _render_action_plan(tbl):
 def render(ds: Dataset, scope) -> None:
     _inject_css()
 
-    st.title("🛡️ Risk Register")
-    st.caption("Pemantauan risiko operasional pabrik dengan heat map (BRD 5.4 & 6).")
+    from ..config import TARGETS as DEFAULT_TARGETS
+    from ..kpi import summarize
 
+    # ===== HEADER KONSISTEN =====
+    page_header(
+        title="Risk Register",
+        subtitle=(
+            f"Sumber: {ds.report.source_label} · "
+            f"Pemantauan risiko operasional pabrik dengan heat map"
+        ),
+        granularity="Snapshot",
+        period_label=format_period_label(scope),
+        icon="🛡️",
+    )
+
+    # ===== MINI HEALTH SCORE =====
+    targets = st.session_state.get("_targets") or DEFAULT_TARGETS
+    try:
+        s = summarize(ds, scope)
+        score, status, color = compute_health_score(s, targets)
+        mini_health_score(score, status, color)
+    except Exception:
+        pass
+    # ===== INFO BOX (STANDAR RISK REGISTER) =====
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%);
+        border-left: 4px solid #3B82F6;border-radius: 10px;padding: 12px 18px;
+        margin: 12px 0 20px 0;display: flex;gap: 12px;align-items: start;">
+        <div style="font-size: 1.2rem;flex-shrink:0;">ℹ️</div>
+        <div style="font-size: 0.85rem;color: #1E3A8A;line-height: 1.5;">
+        <strong style="color:#1E40AF;">Standar Risk Register:</strong>
+        Halaman ini menampilkan <strong>risiko yang masih aktif saat ini</strong>
+        (bukan historis per bulan). Update dilakukan berkala oleh Risk Owner.
+        Fokus: identifikasi & mitigasi risiko yang perlu ditangani <em>sekarang</em>.
+        </div>
+        </div>
+    """, unsafe_allow_html=True)
     risk = ds.risk
     if risk is None or risk.empty:
         st.warning("Data Risk_Register tidak tersedia (sheet 'Risk_Register').")
@@ -411,7 +444,7 @@ def render(ds: Dataset, scope) -> None:
 
     st.markdown("---")
 
-    # 2. Heat map + Distribusi bar (side by side)
+    # 2. Heat map + Distribusi bar
     col_left, col_right = st.columns([1, 1.2])
 
     with col_left:

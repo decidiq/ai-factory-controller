@@ -7,6 +7,9 @@ from ..config import targets_from_config
 from ..kpi import Scope, inventory_table
 from ..pipeline import Dataset
 from .charts import COLORS, apply_theme
+from .components import (page_header, mini_health_score,
+                         format_period_label, compute_health_score,
+                         section_divider)
 
 
 # ==================== CSS GLASSMORPHISM ====================
@@ -64,7 +67,6 @@ GLASS_CSS = """
     letter-spacing: 0.3px;
 }
 
-/* Banner */
 .ia-banner {
     background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
     border-radius: 16px;
@@ -115,6 +117,11 @@ def _inject_css():
     st.markdown(GLASS_CSS, unsafe_allow_html=True)
 
 
+def _active_targets():
+    from ..config import TARGETS as DEFAULT_TARGETS
+    return st.session_state.get("_targets") or DEFAULT_TARGETS
+
+
 # ==================== HELPERS ====================
 def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
                 note: str = None, delta: str = None,
@@ -137,7 +144,7 @@ def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
 
 # ==================== KPI CARDS ====================
 def _render_kpi(inv_tbl, targets):
-    st.markdown("### 📦 Ringkasan Inventory")
+    st.markdown("#### 📦 Ringkasan Inventory")
 
     total_kg = float(inv_tbl["Stock_Kg"].sum())
     total_items = len(inv_tbl)
@@ -156,7 +163,6 @@ def _render_kpi(inv_tbl, targets):
                 delta=("Perlu likuidasi" if dead > 0 else "Aman"),
                 delta_color=("#EF4444" if dead > 0 else "#10B981"))
 
-    # Banner ringkasan
     total_value_risk = slow + dead
     if total_value_risk > 0:
         html = (
@@ -178,7 +184,6 @@ def _render_kpi(inv_tbl, targets):
             f'</div>'
             f'</div>'
         )
-        st.markdown(html, unsafe_allow_html=True)
     else:
         html = (
             f'<div class="ia-banner">'
@@ -199,12 +204,12 @@ def _render_kpi(inv_tbl, targets):
             f'</div>'
             f'</div>'
         )
-        st.markdown(html, unsafe_allow_html=True)
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # ==================== DAYS CHART ====================
 def _render_days_chart(inv_tbl, targets):
-    st.markdown("### 📊 Days Inventory per Material")
+    st.markdown("#### 📊 Days Inventory per Material")
     st.caption(
         f"Semakin tinggi = semakin lama menganggur. "
         f"Batas slow-moving: **{targets.slow_moving_days} hari**."
@@ -269,7 +274,7 @@ def _render_days_chart(inv_tbl, targets):
 
 # ==================== DETAIL TABLE ====================
 def _render_detail_table(inv_tbl):
-    st.markdown("### 📋 Detail Inventory")
+    st.markdown("#### 📋 Detail Inventory")
 
     df = inv_tbl.copy()
 
@@ -294,8 +299,17 @@ def _render_detail_table(inv_tbl):
 def render(ds: Dataset, scope: Scope) -> None:
     _inject_css()
 
-    st.title("📦 Inventory Analysis")
-    st.caption("Analisis perputaran stok, deteksi slow-moving, dan dead stock.")
+    # ===== HEADER KONSISTEN =====
+    page_header(
+        title="Inventory Analysis",
+        subtitle=(
+            f"Sumber: {ds.report.source_label} · "
+            f"Analisis perputaran stok, deteksi slow-moving & dead stock"
+        ),
+        granularity="Snapshot",
+        period_label=format_period_label(scope),
+        icon="📦",
+    )
 
     inv = ds.inventory
     if inv is None or inv.empty:
@@ -307,18 +321,43 @@ def render(ds: Dataset, scope: Scope) -> None:
         st.error("Sheet Inventory harus punya kolom: Material, Stock_Kg, Monthly_Usage.")
         return
 
+    # ===== MINI HEALTH SCORE =====
+    targets_default = _active_targets()
+    try:
+        from ..kpi import summarize
+        s = summarize(ds, scope)
+        score, status, color = compute_health_score(s, targets_default)
+        mini_health_score(score, status, color)
+    except Exception:
+        pass
+
+    # ===== INFO BOX (STANDAR INVENTORY SNAPSHOT) =====
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%);
+        border-left: 4px solid #3B82F6;border-radius: 10px;padding: 12px 18px;
+        margin: 12px 0 20px 0;display: flex;gap: 12px;align-items: start;">
+        <div style="font-size: 1.2rem;flex-shrink:0;">ℹ️</div>
+        <div style="font-size: 0.85rem;color: #1E3A8A;line-height: 1.5;">
+        <strong style="color:#1E40AF;">Status Saat Ini:</strong>
+        Halaman ini menampilkan <strong>posisi stok saat ini</strong> (snapshot).
+        Untuk melihat tren perubahan stok dari waktu ke waktu, tambahkan kolom
+        <code>Period</code> di sheet Inventory.
+        </div>
+        </div>
+    """, unsafe_allow_html=True)
+
     targets = targets_from_config(ds.config)
     tbl = inventory_table(inv)
 
     # 1. KPI cards + Banner
     _render_kpi(tbl, targets)
 
-    st.markdown("---")
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 
     # 2. Days Inventory chart
     _render_days_chart(tbl, targets)
 
-    st.markdown("---")
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 
     # 3. Detail table
     _render_detail_table(tbl)
