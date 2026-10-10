@@ -1,4 +1,6 @@
 """Login page Decidiq - Split-Screen Premium UI."""
+import base64
+import os
 from datetime import datetime
 
 import streamlit as st
@@ -8,7 +10,6 @@ from .. import audit
 ROLES = ["Director / GM", "Factory Manager / Plant Controller"]
 
 # ==================== MENU STRUCTURE (NESTED) ====================
-
 ROLE_MENUS = {
     "Director / GM": {
         "📊 OVERVIEW": ["Dashboard", "Executive Report", "Kualitas Data"],
@@ -51,6 +52,36 @@ ICON_MAP = {
 }
 
 
+# ==================== DEVELOPER INFO ====================
+DEV_NAME = "Randi Meiza"
+DEV_ROLE = "Lead Developer"
+DEV_LINKEDIN = "https://www.linkedin.com/in/randi-meiza-93a67293"
+DEV_PHOTO_PATH = "assets/developer.jpg"
+
+
+def _get_developer_avatar_html() -> str:
+    """Ambil foto developer, convert ke base64. Fallback ke inisial."""
+    # Coba baca foto
+    if os.path.exists(DEV_PHOTO_PATH):
+        try:
+            with open(DEV_PHOTO_PATH, "rb") as f:
+                img_bytes = f.read()
+            b64 = base64.b64encode(img_bytes).decode("utf-8")
+            ext = os.path.splitext(DEV_PHOTO_PATH)[1].lower().lstrip(".")
+            mime = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+            return (
+                f'<div class="hero-dev-avatar-photo" '
+                f'style="background-image: url(\'data:{mime};base64,{b64}\');">'
+                f'</div>'
+            )
+        except Exception:
+            pass
+
+    # Fallback: inisial
+    initial = DEV_NAME.strip()[0].upper() if DEV_NAME else "D"
+    return f'<div class="hero-dev-avatar">{initial}</div>'
+
+
 def _log_local(user: str, action: str) -> None:
     st.session_state.setdefault("activity_logs", []).insert(
         0, {"Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -82,10 +113,10 @@ div[data-testid="stHorizontalBlock"] {
 /* Sisi Kiri — Hero */
 div[data-testid="stHorizontalBlock"] > div:nth-child(1) {
     background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 60%, #4C1D95 100%);
-    padding: 60px 50px;
+    padding: 40px 50px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: flex-start;
     text-align: left;
     color: white;
@@ -93,7 +124,6 @@ div[data-testid="stHorizontalBlock"] > div:nth-child(1) {
     overflow: hidden;
 }
 
-/* Ornamen lingkaran di background hero */
 div[data-testid="stHorizontalBlock"] > div:nth-child(1)::before {
     content: '';
     position: absolute;
@@ -148,7 +178,7 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     display: flex;
     align-items: center;
     gap: 14px;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
     position: relative;
     z-index: 1;
 }
@@ -179,11 +209,11 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
 }
 
 .hero-title {
-    font-size: 2.4rem;
+    font-size: 2rem;
     font-weight: 900;
-    letter-spacing: -1.5px;
+    letter-spacing: -1.2px;
     line-height: 1.15;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     color: #FFFFFF;
     position: relative;
     z-index: 1;
@@ -196,11 +226,12 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
 }
 
 .hero-tagline {
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: #C4B5FD;
-    font-weight: 600;
-    margin-bottom: 36px;
-    letter-spacing: 0.3px;
+    font-weight: 500;
+    margin-bottom: 24px;
+    letter-spacing: 0.2px;
+    line-height: 1.5;
     position: relative;
     z-index: 1;
 }
@@ -209,46 +240,152 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
 .hero-features {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 9px;
     position: relative;
     z-index: 1;
+    margin-bottom: 16px;
 }
 .hero-feature {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
 }
 .hero-feature-icon {
-    width: 32px; height: 32px;
-    border-radius: 8px;
+    width: 26px; height: 26px;
+    border-radius: 7px;
     background: rgba(139, 92, 246, 0.2);
     border: 1px solid rgba(139, 92, 246, 0.4);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.95rem;
+    font-size: 0.8rem;
     flex-shrink: 0;
 }
 .hero-feature-title {
-    font-size: 0.88rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: #FFFFFF;
     margin-bottom: 2px;
 }
 .hero-feature-desc {
-    font-size: 0.76rem;
+    font-size: 0.68rem;
     color: #94A3B8;
-    line-height: 1.4;
+    line-height: 1.35;
+}
+
+/* Divider */
+.hero-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(139, 92, 246, 0.4) 50%, transparent 100%);
+    margin: 18px 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* About Section */
+.hero-about-label {
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #A78BFA;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    position: relative;
+    z-index: 1;
+}
+.hero-about-text {
+    font-size: 0.82rem;
+    color: #C4B5FD;
+    line-height: 1.6;
+    position: relative;
+    z-index: 1;
+}
+.hero-about-text strong { color: #FBBF24; }
+
+/* Developer Section */
+.hero-dev-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-top: 8px;
+    position: relative;
+    z-index: 1;
+    transition: all 0.2s ease;
+}
+.hero-dev-card:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(167, 139, 250, 0.5);
+}
+.hero-dev-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 800;
+    font-size: 1.15rem;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.5);
+    flex-shrink: 0;
+}
+.hero-dev-avatar-photo {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid #8B5CF6;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.5);
+    flex-shrink: 0;
+}
+.hero-dev-info { flex: 1; min-width: 0; }
+.hero-dev-role {
+    font-size: 0.62rem;
+    color: #A78BFA;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+.hero-dev-name {
+    font-size: 0.95rem;
+    color: #FFFFFF;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 5px;
+}
+.hero-dev-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: #FFFFFF;
+    background: linear-gradient(135deg, #0A66C2 0%, #0077B5 100%);
+    padding: 4px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(10, 102, 194, 0.4);
+}
+.hero-dev-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(10, 102, 194, 0.6);
+    color: #FFFFFF;
 }
 
 /* Footer versi */
 .hero-footer {
-    position: absolute;
-    bottom: 24px;
-    left: 50px;
     font-size: 0.7rem;
     color: #64748B;
     letter-spacing: 0.5px;
+    margin-top: 16px;
+    position: relative;
     z-index: 1;
 }
 
@@ -277,70 +414,9 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     margin-top: 14px;
     line-height: 1.6;
 }
-/* ============================================
-   FIX: SELECTBOX DI SIDEBAR
-   ============================================ */
-/* Semua elemen di dalam select — paksa teks gelap */
-[data-testid="stSidebar"] [data-baseweb="select"],
-[data-testid="stSidebar"] [data-baseweb="select"] *,
-[data-testid="stSidebar"] [data-baseweb="select"] > div,
-[data-testid="stSidebar"] [data-baseweb="select"] span,
-[data-testid="stSidebar"] [data-baseweb="select"] div,
-[data-testid="stSidebar"] [data-baseweb="select"] p,
-[data-testid="stSidebar"] [data-baseweb="select"] input,
-[data-testid="stSidebar"] [data-baseweb="select"] [role="button"],
-[data-testid="stSidebar"] [data-baseweb="select"] [data-testid="stMarkdownContainer"] p {
-    color: #0F172A !important;
-    -webkit-text-fill-color: #0F172A !important;
-    font-weight: 600 !important;
-}
-
-/* Background & border selectbox */
-[data-testid="stSidebar"] [data-baseweb="select"] > div {
-    background: #FFFFFF !important;
-    background-color: #FFFFFF !important;
-    border: 1px solid #C4B5FD !important;
-    border-radius: 8px !important;
-}
-
-/* Dropdown list (saat dibuka) */
-[data-baseweb="popover"] [role="listbox"],
-[data-baseweb="popover"] ul,
-[data-baseweb="menu"] {
-    background: #FFFFFF !important;
-}
-[data-baseweb="popover"] li,
-[data-baseweb="popover"] [role="option"],
-[data-baseweb="menu"] li {
-    color: #0F172A !important;
-    -webkit-text-fill-color: #0F172A !important;
-    background: #FFFFFF !important;
-}
-[data-baseweb="popover"] li:hover,
-[data-baseweb="popover"] [role="option"]:hover {
-    background: #F5F3FF !important;
-}
-
-/* Label selectbox ("Pilih Plant", "Pilih Lini Produksi") */
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] label p,
-[data-testid="stSidebar"] [data-testid="stWidgetLabel"],
-[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
-    color: #E9D5FF !important;
-    -webkit-text-fill-color: #E9D5FF !important;
-}
-
-/* Subheader & judul filter di sidebar */
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3,
-[data-testid="stSidebar"] h4 {
-    color: #FFFFFF !important;
-    -webkit-text-fill-color: #FFFFFF !important;
-}
-
 </style>
 """
+
 
 def require_login() -> None:
     if _is_session_valid():
@@ -355,7 +431,9 @@ def require_login() -> None:
     col1, col2 = st.columns([1.15, 1])
 
     with col1:
-        st.markdown("""
+        avatar_html = _get_developer_avatar_html()
+
+        st.markdown(f"""
         <div class="hero-brand">
             <div class="hero-logo">🧠</div>
             <div>
@@ -394,6 +472,20 @@ def require_login() -> None:
                     <div class="hero-feature-title">AI Copilot</div>
                     <div class="hero-feature-desc">Tanya data pabrik dalam bahasa natural, dapat jawaban instan.</div>
                 </div>
+            </div>
+        </div>
+
+        <div class="hero-divider"></div>
+
+        <div class="hero-about-label">👨‍💻 Developed By</div>
+        <div class="hero-dev-card">
+            {avatar_html}
+            <div class="hero-dev-info">
+                <div class="hero-dev-role">{DEV_ROLE}</div>
+                <div class="hero-dev-name">{DEV_NAME}</div>
+                <a class="hero-dev-link" href="{DEV_LINKEDIN}" target="_blank" rel="noopener noreferrer">
+                    💼 LinkedIn Profile →
+                </a>
             </div>
         </div>
 
