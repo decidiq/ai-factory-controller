@@ -8,3 +8,4 @@ scikit-learn
 fpdf2
 python-pptx
 statsmodels
+openai>=1.30.0
