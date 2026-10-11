@@ -256,7 +256,7 @@ def _render_forecast(ds: Dataset, scope: Scope) -> None:
         hovermode="x unified",
         margin=dict(t=60, b=60, l=60, r=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Kartu ringkasan (glass)
     m1, m2, m3, m4 = st.columns(4)
@@ -400,7 +400,7 @@ def _render_anomaly(ds: Dataset, scope: Scope) -> None:
         hovermode="closest",
         margin=dict(t=40, b=60, l=60, r=100),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     with st.expander(f"📋 Lihat detail {result.total} anomali"):
         cols = [c for c in ("Date", "Plant", "Line", "Machine",
@@ -408,7 +408,7 @@ def _render_anomaly(ds: Dataset, scope: Scope) -> None:
                 if c in result.anomalies.columns]
         st.dataframe(
             result.anomalies[cols].reset_index(drop=True),
-            use_container_width=True,
+            width='stretch',
         )
 
 
@@ -524,7 +524,7 @@ def _render_stockout(ds: Dataset) -> None:
         xaxis=dict(tickfont=dict(size=10)),
         margin=dict(t=40, b=80, l=60, r=120),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     st.markdown("#### 📋 Detail Stock")
     rows = []
@@ -538,7 +538,7 @@ def _render_stockout(ds: Dataset) -> None:
                              if r.days_until_empty is not None else "—"),
             "Status": f"{icon} {r.status.capitalize()}",
         })
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
 
 # ==================== SLOW-MOVING ====================
@@ -602,7 +602,7 @@ def _render_slow_moving(ds: Dataset) -> None:
                                   if r.predicted_days_30d is not None else "—"),
             "Status": f"{icon} {r.risk_level.replace('_', ' ').title()}",
         })
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
 
 # ==================== MAIN ====================

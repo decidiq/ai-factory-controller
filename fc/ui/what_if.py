@@ -237,7 +237,7 @@ def _render_result(result, baseline_output, baseline_cogm):
         simulasi=[result.output_kg, result.cogm, result.cost_per_kg],
         height=340,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ==================== SAVE SCENARIO ====================
@@ -253,7 +253,7 @@ def _render_scenario_save(current_scenario, result):
             label_visibility="collapsed",
         )
     with c2:
-        save_btn = st.button("💾 Simpan", type="primary", use_container_width=True)
+        save_btn = st.button("💾 Simpan", type="primary", width='stretch')
 
     if save_btn and name:
         st.session_state.setdefault("what_if_scenarios", []).append({
@@ -302,13 +302,13 @@ def _render_saved_scenarios():
 
     st.dataframe(
         display_df[display_cols].rename(columns=rename_map),
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
     )
 
     c1, c2 = st.columns([1, 4])
     with c1:
-        if st.button("🗑 Hapus Semua", use_container_width=True):
+        if st.button("🗑 Hapus Semua", width='stretch'):
             st.session_state["what_if_scenarios"] = []
             st.rerun()
     with c2:

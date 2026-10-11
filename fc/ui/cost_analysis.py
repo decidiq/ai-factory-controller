@@ -224,7 +224,7 @@ def _render_cogm_breakdown(breakdown):
             textposition="inside",
             textfont=dict(size=11, color="#FFFFFF", family="Inter"),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with c2:
         df_display = df.copy()
@@ -235,7 +235,7 @@ def _render_cogm_breakdown(breakdown):
         st.markdown("**Detail Komponen:**")
         st.dataframe(
             df_display[["Komponen", "Nilai (Rp)", "Porsi (%)"]],
-            use_container_width=True, hide_index=True, height=380,
+            width='stretch', hide_index=True, height=380,
         )
 
 
@@ -308,7 +308,7 @@ def _render_pareto(ds, scope):
                     overlaying="y", side="right", range=[0, 105], showgrid=False),
         margin=dict(t=40, b=120, l=70, r=70),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     above_80 = (top["Cumulative_Pct"] <= 80).sum() + 1
     st.info(
@@ -429,7 +429,7 @@ def _render_cost_kg_trend(ds, scope):
         ),
         margin=dict(t=40, b=70, l=80, r=100),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # ===== Insight =====
     if partials:

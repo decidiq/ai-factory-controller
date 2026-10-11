@@ -226,7 +226,7 @@ def _render_waterfall(cogm_kpi, breakdown):
                    tickfont=dict(size=11)),
         margin=dict(t=60, b=80, l=80, r=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 def _render_composition(cogm_kpi, breakdown):
@@ -248,7 +248,7 @@ def _render_composition(cogm_kpi, breakdown):
         textposition="inside",
         textfont=dict(size=11, color="#FFFFFF", family="Inter"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 def _render_detail_table(breakdown):
@@ -262,7 +262,7 @@ def _render_detail_table(breakdown):
                 "Nilai (Rp)": f"Rp {val:,.0f}",
                 "Porsi (%)": f"{pct:.1f}%",
             })
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
 
 # ==================== VARIANCE DECOMPOSITION ====================
@@ -371,7 +371,7 @@ def _render_variance_decomposition(ds, scope):
                    tickfont=dict(size=11)),
         margin=dict(t=60, b=80, l=80, r=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Pie Kontribusi
     st.markdown("##### 🥧 Kontribusi Tiap Komponen")
@@ -403,7 +403,7 @@ def _render_variance_decomposition(ds, scope):
         )
         fig_pie = apply_theme(fig_pie, height=360)
         fig_pie.update_layout(showlegend=False, margin=dict(t=20, b=20, l=20, r=20))
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, width='stretch')
 
     with col_table:
         df_table = df_pie.copy()
@@ -418,7 +418,7 @@ def _render_variance_decomposition(ds, scope):
             df_table[["Komponen", "Nilai_Fmt", "Porsi_Fmt", "Arah"]].rename(columns={
                 "Nilai_Fmt": "Nilai (Rp)", "Porsi_Fmt": "Porsi",
             }),
-            use_container_width=True, hide_index=True,
+            width='stretch', hide_index=True,
         )
 
     # Detail per Material
@@ -448,7 +448,7 @@ def _render_variance_decomposition(ds, scope):
             "Δ Cost": merged["Δ_Cost"].apply(
                 lambda x: f"+Rp {x:,.0f}" if x >= 0 else f"−Rp {abs(x):,.0f}"),
         })
-        st.dataframe(display, use_container_width=True, hide_index=True)
+        st.dataframe(display, width='stretch', hide_index=True)
 
     # Penyebab Utama
     top_k, top_v = max(dec.as_dict().items(), key=lambda kv: abs(kv[1]))

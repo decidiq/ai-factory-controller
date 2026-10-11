@@ -213,7 +213,7 @@ def _render_global_targets(username: str) -> None:
 
     with col_save:
         if st.button("💾 Simpan Global", type="primary",
-                     use_container_width=True, key="save_global"):
+                     width='stretch', key="save_global"):
             changes = settings_mgr.save_targets(new_values, user=username)
             if changes:
                 st.success(f"✅ {len(changes)} perubahan disimpan.")
@@ -225,7 +225,7 @@ def _render_global_targets(username: str) -> None:
                 st.info("ℹ️ Tidak ada perubahan.")
 
     with col_reset:
-        if st.button("🔄 Reset ke Default", use_container_width=True,
+        if st.button("🔄 Reset ke Default", width='stretch',
                      key="reset_global"):
             settings_mgr.reset_targets(user=username)
             st.success("✅ Semua target global dikembalikan ke default.")
@@ -326,7 +326,7 @@ def _render_period_card(p: dict, username: str) -> None:
         with col2:
             if st.button("🗑️ Hapus",
                          key=f"del_{p['period_start']}_{p['period_end']}",
-                         use_container_width=True):
+                         width='stretch'):
                 settings_mgr.delete_target_period(
                     p["period_start"], p["period_end"], user=username)
                 st.rerun()
@@ -372,7 +372,7 @@ def _render_history() -> None:
             "Aksi": h.get("action", ""),
             "Perubahan": changes_str,
         })
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
 
 # ==================== MAIN ====================

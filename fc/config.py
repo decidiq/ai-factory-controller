@@ -3,6 +3,14 @@ from dataclasses import dataclass, replace
 from typing import Optional
 import pandas as pd
 
+# ==================== DEV MODE (JANGAN COMMIT SAAT TRUE) ====================
+# ⚠️ Set DEV_BYPASS_LOGIN = False sebelum push ke GitHub / Streamlit Cloud!
+DEV_BYPASS_LOGIN = True           # True = skip halaman login (untuk dev/screenshot)
+DEV_SHOW_BANNER = True            # True = tampilkan banner DEV MODE (matikan saat screenshot)
+DEV_DEFAULT_ROLE = "Director / GM"  # Pilih: "Director / GM" atau "Factory Manager / Plant Controller"
+DEV_DEFAULT_USERNAME = "demo.director"
+# ===========================================================================
+
 
 @dataclass(frozen=True)
 class Targets:

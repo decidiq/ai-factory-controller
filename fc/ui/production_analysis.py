@@ -265,7 +265,7 @@ def _render_monthly_section(prod):
         xaxis=dict(title="<b>Bulan</b>"),
         margin=dict(t=40, b=50, l=80, r=100),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Tabel MoM
     st.markdown("**Detail per Bulan:**")
@@ -283,7 +283,7 @@ def _render_monthly_section(prod):
             entry["Scrap (%)"] = f"{row['Scrap_%']:.2f}%"
         table_rows.append(entry)
 
-    st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(table_rows), width='stretch', hide_index=True)
 
 
 # ==================== DAILY SECTION ====================
@@ -409,7 +409,7 @@ def _render_trend_chart(daily):
             title_font=dict(color=COLORS["danger"], size=12),
         )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ==================== DETAIL TABLE ====================
@@ -425,7 +425,7 @@ def _render_detail_table(prod):
 
     st.dataframe(
         prod[display_cols],
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         height=420,
     )

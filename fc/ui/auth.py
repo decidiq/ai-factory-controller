@@ -61,7 +61,6 @@ DEV_PHOTO_PATH = "assets/developer.jpg"
 
 def _get_developer_avatar_html() -> str:
     """Ambil foto developer, convert ke base64. Fallback ke inisial."""
-    # Coba baca foto
     if os.path.exists(DEV_PHOTO_PATH):
         try:
             with open(DEV_PHOTO_PATH, "rb") as f:
@@ -77,7 +76,6 @@ def _get_developer_avatar_html() -> str:
         except Exception:
             pass
 
-    # Fallback: inisial
     initial = DEV_NAME.strip()[0].upper() if DEV_NAME else "D"
     return f'<div class="hero-dev-avatar">{initial}</div>'
 
@@ -97,20 +95,15 @@ def _is_session_valid() -> bool:
 # ==================== LOGIN PAGE CSS ====================
 LOGIN_CSS = """
 <style>
-/* Full screen — hilangkan padding Streamlit */
 .block-container {
     padding: 0 !important;
     max-width: 100% !important;
     margin: 0 !important;
 }
-
-/* Split screen layout */
 div[data-testid="stHorizontalBlock"] {
     min-height: 100vh;
     gap: 0 !important;
 }
-
-/* Sisi Kiri — Hero */
 div[data-testid="stHorizontalBlock"] > div:nth-child(1) {
     background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 60%, #4C1D95 100%);
     padding: 40px 50px;
@@ -123,7 +116,6 @@ div[data-testid="stHorizontalBlock"] > div:nth-child(1) {
     position: relative;
     overflow: hidden;
 }
-
 div[data-testid="stHorizontalBlock"] > div:nth-child(1)::before {
     content: '';
     position: absolute;
@@ -142,8 +134,6 @@ div[data-testid="stHorizontalBlock"] > div:nth-child(1)::after {
     background: radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, transparent 70%);
     pointer-events: none;
 }
-
-/* Sisi Kanan — Form */
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) {
     background: #FAFAFA;
     padding: 60px 40px;
@@ -152,8 +142,6 @@ div[data-testid="stHorizontalBlock"] > div:nth-child(2) {
     justify-content: center;
     align-items: center;
 }
-
-/* Kartu Login */
 div[data-testid="stVerticalBlockBorderWrapper"] {
     width: 100%;
     max-width: 420px;
@@ -172,8 +160,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     height: 4px;
     background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
 }
-
-/* Hero Content */
 .hero-brand {
     display: flex;
     align-items: center;
@@ -207,7 +193,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     font-weight: 600;
     margin-top: 4px;
 }
-
 .hero-title {
     font-size: 2rem;
     font-weight: 900;
@@ -224,7 +209,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
-
 .hero-tagline {
     font-size: 0.9rem;
     color: #C4B5FD;
@@ -235,8 +219,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     position: relative;
     z-index: 1;
 }
-
-/* Feature highlights */
 .hero-features {
     display: flex;
     flex-direction: column;
@@ -272,8 +254,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     color: #94A3B8;
     line-height: 1.35;
 }
-
-/* Divider */
 .hero-divider {
     height: 1px;
     background: linear-gradient(90deg, transparent 0%, rgba(139, 92, 246, 0.4) 50%, transparent 100%);
@@ -281,8 +261,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     position: relative;
     z-index: 1;
 }
-
-/* About Section */
 .hero-about-label {
     font-size: 0.66rem;
     font-weight: 800;
@@ -301,8 +279,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     z-index: 1;
 }
 .hero-about-text strong { color: #FBBF24; }
-
-/* Developer Section */
 .hero-dev-card {
     display: flex;
     align-items: center;
@@ -378,8 +354,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     box-shadow: 0 4px 10px rgba(10, 102, 194, 0.6);
     color: #FFFFFF;
 }
-
-/* Footer versi */
 .hero-footer {
     font-size: 0.7rem;
     color: #64748B;
@@ -388,8 +362,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     position: relative;
     z-index: 1;
 }
-
-/* Form header */
 .form-header {
     text-align: center;
     margin-bottom: 24px;
@@ -405,8 +377,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
     font-size: 0.85rem;
     color: #64748B;
 }
-
-/* Login footer caption */
 .login-footer {
     text-align: center;
     color: #94A3B8;
@@ -419,6 +389,27 @@ div[data-testid="stVerticalBlockBorderWrapper"]::before {
 
 
 def require_login() -> None:
+    # ==================== DEV BYPASS ====================
+    from fc.config import (
+        DEV_BYPASS_LOGIN, DEV_SHOW_BANNER,
+        DEV_DEFAULT_ROLE, DEV_DEFAULT_USERNAME,
+    )
+
+    if DEV_BYPASS_LOGIN:
+        if not _is_session_valid():
+            st.session_state["authenticated"] = True
+            st.session_state["username"] = DEV_DEFAULT_USERNAME
+            st.session_state["role"] = DEV_DEFAULT_ROLE
+
+        if DEV_SHOW_BANNER:
+            st.warning(
+                "🛠️ **DEV MODE** — Login bypass aktif. "
+                "Set `DEV_BYPASS_LOGIN = False` di `fc/config.py` "
+                "sebelum push ke production."
+            )
+        return
+    # ====================================================
+
     if _is_session_valid():
         return
 
@@ -512,7 +503,7 @@ def require_login() -> None:
             st.markdown("<br>", unsafe_allow_html=True)
 
             if st.button("Sign In →", type="primary",
-                         use_container_width=True, key="login_btn"):
+                         width='stretch', key="login_btn"):
                 username = (user or "").strip()
                 if not username:
                     st.error("Masukkan username Anda.")

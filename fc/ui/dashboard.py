@@ -146,9 +146,22 @@ def _render_alert(alert) -> None:
 
 
 def _render_period_compare(ds: Dataset) -> None:
+    from .components import render_empty_state
     periods = available_periods(ds)
     if len(periods) < 2:
-        st.info("Butuh minimal 2 periode untuk perbandingan.")
+        render_empty_state(
+            title="Belum Cukup Periode untuk Perbandingan",
+            reason=(
+                f"Saat ini hanya ada **{len(periods)} periode** di data Anda. "
+                f"Untuk analisis Month-over-Month (MoM), sistem butuh minimal "
+                f"**2 periode berbeda** (bulan)."
+            ),
+            icon="📆",
+            hint=(
+                "Pastikan file Excel Anda memiliki kolom **Period** berisi "
+                "lebih dari 1 bulan (contoh: 2026-08, 2026-09)."
+            ),
+        )
         return
 
     c1, c2 = st.columns(2)
@@ -179,7 +192,7 @@ def _render_period_compare(ds: Dataset) -> None:
         })
 
     import pandas as pd
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
     worsening = [c for c in comps if c.is_improving is False]
     if worsening:
@@ -233,17 +246,17 @@ def _render_section_total(s, targets, ds):
         if s.yield_pct.available:
             st.plotly_chart(gauge("Yield", s.yield_pct.value, targets.yield_min,
                                   min_val=85, max_val=100, higher_is_better=True),
-                            use_container_width=True)
+                            width='stretch')
     with g2:
         if s.scrap_pct.available:
             st.plotly_chart(gauge("Scrap", s.scrap_pct.value, targets.scrap_max,
                                   min_val=0, max_val=10, higher_is_better=False),
-                            use_container_width=True)
+                            width='stretch')
     with g3:
         if s.oee.oee.available:
             st.plotly_chart(gauge("OEE", s.oee.oee.value, targets.oee_min,
                                   min_val=60, max_val=100, higher_is_better=True),
-                            use_container_width=True)
+                            width='stretch')
 
     st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
@@ -285,6 +298,7 @@ def _render_section_total(s, targets, ds):
 
     with tab_cogm:
         from .charts import pie_chart
+        from .components import render_empty_state
         if s.breakdown:
             total = sum(s.breakdown.values())
             center = (f"Rp {total/1_000_000_000:.2f} M" if total >= 1e9
@@ -292,10 +306,21 @@ def _render_section_total(s, targets, ds):
             fig = px.pie(names=list(s.breakdown),
                          values=list(s.breakdown.values()), hole=0.55)
             fig = pie_chart(fig, height=380, center_text=center)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
-            st.info(f"Data tidak tersedia: {s.cogm.note}")
-
+            render_empty_state(
+                title="Breakdown COGM Tidak Tersedia",
+                reason=(
+                    f"Sistem belum bisa menghitung komposisi COGM. "
+                    f"Alasan: *{s.cogm.note}*"
+                ),
+                icon="🥧",
+                hint=(
+                    "Pastikan sheet biaya Anda (Raw_Material, Packaging, "
+                    "Direct_Labor, Utility, Maintenance, Depreciation) "
+                    "berisi kolom **Cost** dan **Period**."
+                ),
+            )
 
 # ==================== SECTION 2: BULANAN ====================
 def _render_section_monthly(ds):
@@ -331,9 +356,39 @@ def _render_section_daily(ds, scope):
     )
 
     from .charts import line_chart, COLORS
+    from .components import render_empty_state, is_filter_too_narrow
     prod = scope_production(ds.production, scope)
     if not len(prod):
-        st.info("Tidak ada data produksi pada filter terpilih.")
+        # Cek apakah ini karena filter terlalu sempit
+        unfiltered = ds.production
+        if is_filter_too_narrow(prod, unfiltered):
+            render_empty_state(
+                title="Filter Anda Terlalu Sempit",
+                reason=(
+                    "Ada data produksi di file Anda, tapi tidak ada yang "
+                    "cocok dengan filter yang sedang aktif (Plant / Line / Tanggal)."
+                ),
+                icon="🔍",
+                cta_label="🔄 Reset Filter ke Default",
+                cta_action=lambda: st.session_state.pop("filter", None),
+                hint=(
+                    "Coba longgarkan filter Plant, Line, atau perlebar rentang "
+                    "tanggal di **sidebar kiri**."
+                ),
+            )
+        else:
+            render_empty_state(
+                title="Tidak Ada Data Produksi",
+                reason=(
+                    "File Anda tidak memiliki data produksi. Sheet "
+                    "**Production** kemungkinan kosong atau tidak ada."
+                ),
+                icon="📊",
+                hint=(
+                    "Pastikan file Excel Anda memiliki sheet **Production** "
+                    "dengan kolom minimal: `Date`, `Machine`, `Output_Kg`."
+                ),
+            )
         return
 
     daily = prod.groupby("Date", as_index=False)["Output_Kg"].sum()
@@ -373,7 +428,7 @@ def _render_section_daily(ds, scope):
 
     fig = line_chart(fig, height=360, y_title="Output (Kg)")
     fig.update_layout(margin=dict(t=50, b=60, l=60, r=80))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ==================== MAIN RENDER ====================

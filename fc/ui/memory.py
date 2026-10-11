@@ -295,7 +295,7 @@ def _render_trend() -> None:
         legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center"),
         margin=dict(t=40, b=60, l=60, r=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ==================== CATEGORY BREAKDOWN ====================
@@ -337,14 +337,14 @@ def _render_category(stats) -> None:
 
         fig = apply_theme(fig, height=340)
         fig.update_layout(showlegend=False, margin=dict(t=20, b=20, l=20, r=20))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with c2:
         st.markdown("**Detail Kategori:**")
         df_display = df.rename(columns={"Kategori": "Kategori", "Jumlah": "Jumlah"})
         df_display["Porsi"] = (df_display["Jumlah"] / df_display["Jumlah"].sum() * 100).round(1)
         df_display["Porsi"] = df_display["Porsi"].apply(lambda x: f"{x}%")
-        st.dataframe(df_display, use_container_width=True, hide_index=True, height=340)
+        st.dataframe(df_display, width='stretch', hide_index=True, height=340)
 
 
 # ==================== DECISIONS LOG ====================
@@ -382,7 +382,7 @@ def _render_log() -> None:
             "✅ Disetujui" if "approve" in str(d).lower() else
             "❌ Ditolak" if "reject" in str(d).lower() else str(d))
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width='stretch', hide_index=True)
 
 
 # ==================== OUTCOME TRACKER ====================

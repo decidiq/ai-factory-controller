@@ -514,3 +514,63 @@ def render_projection_card(proj: dict, accent: str = "#F59E0B") -> None:
         f'</div>'
     )
     st.markdown(html, unsafe_allow_html=True)
+
+
+# ==================== EMPTY STATE ====================
+def render_empty_state(title: str, reason: str, icon: str = "📭",
+                        cta_label: str = None, cta_action=None,
+                        hint: str = None) -> None:
+    """Render empty state yang informatif dengan title + reason + next action.
+    
+    Args:
+        title: Judul singkat, mis. "Tidak Ada Data Produksi"
+        reason: Penjelasan kenapa kosong, mis. "Filter terlalu sempit..."
+        icon: Emoji besar, default 📭
+        cta_label: Label tombol aksi, mis. "Reset Filter"
+        cta_action: Callable yang dipanggil saat tombol diklik
+        hint: Saran tambahan (opsional), mis. "Coba ubah rentang tanggal di sidebar"
+    """
+    # Hint block (kalau ada)
+    hint_html = ""
+    if hint:
+        hint_html = (
+            f'<div style="background: #EFF6FF; border-left: 3px solid #3B82F6;'
+            f'border-radius: 8px; padding: 10px 14px; margin-top: 16px;'
+            f'font-size: 0.82rem; color: #1E3A8A; text-align: left;'
+            f'max-width: 500px; margin-left: auto; margin-right: auto;">'
+            f'<strong>💡 Saran:</strong> {hint}'
+            f'</div>'
+        )
+
+    html = (
+        f'<div style="background: #F8FAFC; border: 1px dashed #CBD5E1;'
+        f'border-radius: 12px; padding: 40px 30px; text-align: center;'
+        f'margin: 20px 0;">'
+        f'<div style="font-size: 3.5rem; margin-bottom: 14px;">{icon}</div>'
+        f'<div style="font-size: 1.15rem; font-weight: 700; color: #1E1B4B;'
+        f'margin-bottom: 10px;">{title}</div>'
+        f'<div style="font-size: 0.9rem; color: #64748B; line-height: 1.55;'
+        f'max-width: 500px; margin-left: auto; margin-right: auto;">'
+        f'{reason}</div>'
+        f'{hint_html}'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+    # Tombol CTA (kalau ada)
+    if cta_label and cta_action:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button(cta_label, type="primary",
+                         width='stretch',
+                         key=f"empty_cta_{cta_label}"):
+                cta_action()
+
+
+def is_filter_too_narrow(prod_df, unfiltered_df=None) -> bool:
+    """Cek apakah filter terlalu sempit (data ada, tapi kosong setelah filter)."""
+    if unfiltered_df is None:
+        return False
+    has_unfiltered = unfiltered_df is not None and len(unfiltered_df) > 0
+    has_filtered = prod_df is not None and len(prod_df) > 0
+    return has_unfiltered and not has_filtered

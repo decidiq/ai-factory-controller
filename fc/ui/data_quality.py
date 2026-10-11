@@ -242,7 +242,7 @@ def render_issues(ds: Dataset) -> None:
 
     st.markdown("#### 📋 Ringkasan per Sheet")
     try:
-        st.dataframe(rep.summary_frame(), use_container_width=True, hide_index=True)
+        st.dataframe(rep.summary_frame(), width='stretch', hide_index=True)
     except Exception as e:
         st.info(f"Ringkasan tidak tersedia: {e}")
 
@@ -252,7 +252,7 @@ def render_issues(ds: Dataset) -> None:
         if frame.empty:
             st.success("✅ Tidak ada temuan. Seluruh data lolos validasi.")
         else:
-            st.dataframe(frame, use_container_width=True, hide_index=True)
+            st.dataframe(frame, width='stretch', hide_index=True)
     except Exception as e:
         st.info(f"Detail temuan tidak tersedia: {e}")
 
@@ -293,4 +293,4 @@ def render(ds: Dataset) -> None:
     rows = [{"Sheet": sh.name, "Kolom": c.name, "Tipe": c.kind, "Satuan": c.unit,
              "Level": _LEVEL[c.level], "Dipakai untuk": c.feeds or sh.module}
             for sh in SHEETS for c in sh.columns]
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)

@@ -410,7 +410,7 @@ def _render_mom(ds) -> None:
             "Δ": c.fmt_delta(), "Δ %": c.fmt_pct(), "Status": status,
         })
     import pandas as pd
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
 
 # ==================== VARIANCE & INVENTORY ====================
@@ -421,7 +421,7 @@ def _render_variance_and_inventory(ds) -> None:
                 and {"Category", "Budget", "Actual"} <= set(ds.budget.columns)):
             st.markdown("### 💰 Variance Biaya")
             st.dataframe(variance_table(ds.budget),
-                         use_container_width=True, hide_index=True)
+                         width='stretch', hide_index=True)
     with col2:
         if ds.inventory is not None and not ds.inventory.empty:
             st.markdown("### 📦 Inventaris")
@@ -441,7 +441,7 @@ def _render_export_buttons(ds, scope, targets) -> None:
     col_pdf, col_excel, col_ppt = st.columns(3)
 
     with col_pdf:
-        if st.button("📄 Buat PDF", type="primary", use_container_width=True):
+        if st.button("📄 Buat PDF", type="primary", width='stretch'):
             with st.spinner("Membuat PDF..."):
                 try:
                     pdf_path = generate_pdf(ds, scope, targets=targets)
@@ -449,13 +449,13 @@ def _render_export_buttons(ds, scope, targets) -> None:
                         st.download_button(
                             label="⬇️ Download PDF", data=f.read(),
                             file_name=pdf_path, mime="application/pdf",
-                            use_container_width=True,
+                            width='stretch',
                         )
                 except Exception as e:
                     st.error(f"Gagal membuat PDF: {e}")
 
     with col_excel:
-        if st.button("📊 Buat Excel", type="primary", use_container_width=True):
+        if st.button("📊 Buat Excel", type="primary", width='stretch'):
             with st.spinner("Membuat Excel..."):
                 try:
                     xlsx_data = generate_excel(ds, scope, targets=targets)
@@ -464,13 +464,13 @@ def _render_export_buttons(ds, scope, targets) -> None:
                         label="⬇️ Download Excel", data=xlsx_data,
                         file_name=f"decidiq_report_{ts}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
+                        width='stretch',
                     )
                 except Exception as e:
                     st.error(f"Gagal membuat Excel: {e}")
 
     with col_ppt:
-        if st.button("📽️ Buat PPT", type="primary", use_container_width=True):
+        if st.button("📽️ Buat PPT", type="primary", width='stretch'):
             with st.spinner("Membuat PPT..."):
                 try:
                     ppt_data = generate_ppt(ds, scope, targets)
@@ -479,7 +479,7 @@ def _render_export_buttons(ds, scope, targets) -> None:
                         label="⬇️ Download PPT", data=ppt_data,
                         file_name=f"decidiq_report_{ts}.pptx",
                         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                        use_container_width=True,
+                        width='stretch',
                     )
                 except Exception as e:
                     st.error(f"Gagal membuat PPT: {e}")

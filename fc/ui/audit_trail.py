@@ -198,7 +198,7 @@ def render(ds, scope) -> None:
     with col3:
         st.write("")
         st.write("")
-        show = st.button("🔄 Muat Ulang", use_container_width=True)
+        show = st.button("🔄 Muat Ulang", width='stretch')
 
     # Tabel log
     st.markdown("### 📜 Log Terbaru")
@@ -214,7 +214,7 @@ def render(ds, scope) -> None:
     df = df[["timestamp", "user", "action", "source_label", "details"]]
     df.columns = ["Waktu", "User", "Aksi", "Sumber Data", "Detail"]
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width='stretch', hide_index=True)
 
     # Ringkasan per action
     st.markdown("---")
@@ -222,7 +222,7 @@ def render(ds, scope) -> None:
     if len(df):
         summary = df["Aksi"].value_counts().reset_index()
         summary.columns = ["Aksi", "Jumlah"]
-        st.dataframe(summary, use_container_width=True, hide_index=True)
+        st.dataframe(summary, width='stretch', hide_index=True)
 
     # Info DB
     st.markdown("---")

@@ -222,7 +222,7 @@ def _render_quick_prompts():
     cols = st.columns(6)
     for col, (label, full_prompt) in zip(cols, prompts):
         with col:
-            if st.button(label, use_container_width=True, key=f"quick_{label}"):
+            if st.button(label, width='stretch', key=f"quick_{label}"):
                 st.session_state["_quick_prompt"] = full_prompt
                 st.rerun()
 

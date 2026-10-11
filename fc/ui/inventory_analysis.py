@@ -269,7 +269,7 @@ def _render_days_chart(inv_tbl, targets):
         xaxis=dict(tickfont=dict(size=11)),
         margin=dict(t=40, b=80, l=60, r=100),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ==================== DETAIL TABLE ====================
@@ -292,7 +292,7 @@ def _render_detail_table(inv_tbl):
         }),
     })
 
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width='stretch', hide_index=True)
 
 
 # ==================== MAIN ====================

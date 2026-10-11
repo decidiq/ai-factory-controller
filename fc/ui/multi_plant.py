@@ -235,7 +235,7 @@ def _render_output_comparison(agg):
         xaxis=dict(title="<b>Plant</b>", tickfont=dict(size=12)),
         margin=dict(t=60, b=60, l=80, r=100),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 def _render_share_pie(agg):
@@ -268,7 +268,7 @@ def _render_share_pie(agg):
                     xanchor="left", x=1.02,
                     font=dict(size=11, color=COLORS["text_axis"])),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 def _render_cost_comparison(agg):
@@ -311,7 +311,7 @@ def _render_cost_comparison(agg):
         yaxis=dict(title="", tickfont=dict(size=12)),
         margin=dict(t=40, b=60, l=140, r=120),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 def _render_table(agg):
@@ -343,7 +343,7 @@ def _render_table(agg):
             "Baris Data": df["Rows"],
         })
 
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width='stretch', hide_index=True)
 
 
 def _render_insights(agg):

@@ -273,7 +273,7 @@ def _render_rec_card(rec, index: int) -> None:
 
         with col_a:
             if st.button("✅ Setujui", key=f"approve_{index}",
-                         type="primary", use_container_width=True):
+                         type="primary", width='stretch'):
                 audit.log_decision(
                     recommendation=rec.title,
                     decision="approved",
@@ -283,7 +283,7 @@ def _render_rec_card(rec, index: int) -> None:
 
         with col_b:
             if st.button("❌ Tolak", key=f"reject_{index}",
-                         use_container_width=True):
+                         width='stretch'):
                 audit.log_decision(
                     recommendation=rec.title,
                     decision="rejected",

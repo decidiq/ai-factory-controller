@@ -303,7 +303,7 @@ def _render_heatmap(tbl):
         ),
         margin=dict(t=40, b=80, l=80, r=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ==================== RISK LIST ====================
@@ -426,7 +426,7 @@ def render(ds: Dataset, scope) -> None:
 
     if "Risk" not in risk.columns:
         st.error("Sheet Risk_Register harus punya kolom **Risk**.")
-        st.dataframe(risk.head(20), use_container_width=True)
+        st.dataframe(risk.head(20), width='stretch')
         return
 
     if not {"Probability_Val", "Impact_Val"} <= set(risk.columns):
@@ -434,7 +434,7 @@ def render(ds: Dataset, scope) -> None:
             "Sheet Risk_Register butuh **Probability_Val** & **Impact_Val** "
             "(skala 1-3)."
         )
-        st.dataframe(risk, use_container_width=True, hide_index=True)
+        st.dataframe(risk, width='stretch', hide_index=True)
         return
 
     tbl = risk_table(risk)
@@ -477,7 +477,7 @@ def render(ds: Dataset, scope) -> None:
             yaxis_title="<b>Jumlah</b>",
             xaxis_title="",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         c1, c2 = st.columns(2)
         _glass_card(c1, "Rata-rata Score", f"{tbl['Score'].mean():.1f}",

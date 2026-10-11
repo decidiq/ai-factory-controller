@@ -258,7 +258,7 @@ def _render_bar_chart(tbl):
         legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center"),
         margin=dict(t=60, b=80, l=80, r=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ==================== VARIANCE CHART ====================
@@ -298,7 +298,7 @@ def _render_variance_chart(tbl):
                    tickfont=dict(size=12, color=COLORS["text"])),
         margin=dict(t=60, b=80, l=80, r=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ==================== TABLE ====================
@@ -326,7 +326,7 @@ def _render_table(tbl):
         "Variance_Pct": "Variance %",
         "Utilization_Pct": "Utilization %",
     })
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width='stretch', hide_index=True)
 
 
 # ==================== MAIN ====================
