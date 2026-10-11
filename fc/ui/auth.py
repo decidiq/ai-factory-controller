@@ -39,6 +39,25 @@ ROLE_MENUS = {
     },
 }
 
+# ==================== DEV: SHOW ALL MENUS ====================
+try:
+    from fc.config import DEV_SHOW_ALL_MENUS
+except ImportError:
+    DEV_SHOW_ALL_MENUS = False
+
+if DEV_SHOW_ALL_MENUS:
+    _all_menus = {}
+    for _role_menu in ROLE_MENUS.values():
+        for _cat, _items in _role_menu.items():
+            _all_menus.setdefault(_cat, [])
+            for _item in _items:
+                if _item not in _all_menus[_cat]:
+                    _all_menus[_cat].append(_item)
+    for _role in ROLE_MENUS:
+        ROLE_MENUS[_role] = _all_menus
+# ===========================================================
+
+
 # ==================== ICON MAP ====================
 ICON_MAP = {
     "Dashboard": "📊", "Executive Report": "📋", "Kualitas Data": "✅",

@@ -235,7 +235,12 @@ else:  # Mode Demo
 
 # ==================== STATUS DATA ====================
 
-if ds.is_demo:
+try:
+    from fc.config import DEV_SHOW_BANNER
+except ImportError:
+    DEV_SHOW_BANNER = True
+
+if ds.is_demo and DEV_SHOW_BANNER:
     st.warning("🧪 **DEMO DATA** - angka di bawah adalah data contoh, bukan data pabrik Anda.")
 
 if not ds.ok:
