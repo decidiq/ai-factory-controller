@@ -287,6 +287,8 @@ def _render_detail_table(breakdown):
                 "Nilai (Rp)": _fmt_rp(val),
                 "Porsi (%)": _fmt_pct(pct, 1),
             })
+        # render_table DI LUAR loop — cuma render 1x dengan semua baris
+        if rows:
             render_table(pd.DataFrame(rows), max_height="300px")
 
 
