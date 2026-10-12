@@ -11,7 +11,7 @@ from ..pipeline import Dataset
 from .charts import COLORS, apply_theme
 from .components import (page_header, mini_health_score,
                          format_period_label, compute_health_score,
-                         section_divider)
+                         section_divider, render_table)
 
 
 def _fmt_thousand(v, decimals: int = 0) -> str:
@@ -283,7 +283,7 @@ def _render_detail_table(inv_tbl):
         "Status": df["Status"].map({
             "Normal": "🟢 Normal", "Slow Moving": "🟡 Slow Moving",
             "Dead Stock": "🔴 Dead Stock"})})
-    st.dataframe(display, width='stretch', hide_index=True)
+    render_table(display, max_height="400px")
 
 
 def render(ds: Dataset, scope: Scope) -> None:

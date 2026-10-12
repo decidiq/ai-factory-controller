@@ -357,7 +357,8 @@ def _render_table(agg):
             "Baris Data": df["Rows"].apply(lambda x: _fmt_thousand(x)),
         })
 
-    st.dataframe(display, width='stretch', hide_index=True)
+    from .components import render_table
+    render_table(display, max_height="350px")
 
 
 def _render_insights(agg):

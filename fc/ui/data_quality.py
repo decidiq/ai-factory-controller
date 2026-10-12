@@ -241,9 +241,11 @@ def _render_kpi(ds: Dataset):
 def render_issues(ds: Dataset) -> None:
     rep = ds.report
 
+    from .components import render_table
+
     st.markdown("#### 📋 Ringkasan per Sheet")
     try:
-        st.dataframe(rep.summary_frame(), width='stretch', hide_index=True)
+        render_table(rep.summary_frame(), max_height="350px")
     except Exception as e:
         st.info(f"Ringkasan tidak tersedia: {e}")
 
@@ -253,7 +255,7 @@ def render_issues(ds: Dataset) -> None:
         if frame.empty:
             st.success("✅ Tidak ada temuan. Seluruh data lolos validasi.")
         else:
-            st.dataframe(frame, width='stretch', hide_index=True)
+            render_table(frame, max_height="400px")
     except Exception as e:
         st.info(f"Detail temuan tidak tersedia: {e}")
 
@@ -270,6 +272,8 @@ def render_blocking(ds: Dataset) -> None:
 # ==================== MAIN ====================
 def render(ds: Dataset) -> None:
     _inject_css()
+
+    from .components import render_table
 
     st.title("🧪 Kualitas Data")
     st.caption(f"Sumber: {ds.report.source_label} · Dibaca: {ds.report.loaded_at}")
@@ -294,4 +298,4 @@ def render(ds: Dataset) -> None:
     rows = [{"Sheet": sh.name, "Kolom": c.name, "Tipe": c.kind, "Satuan": c.unit,
              "Level": _LEVEL[c.level], "Dipakai untuk": c.feeds or sh.module}
             for sh in SHEETS for c in sh.columns]
-    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+    render_table(pd.DataFrame(rows), max_height="500px")

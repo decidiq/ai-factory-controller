@@ -17,6 +17,7 @@ from .components import (
     detect_partial_periods, partial_warning_banner,
     period_selector, filter_dataset_by_period,
     project_month_end_cogm, render_projection_card,
+    render_table,
 )
 
 
@@ -286,7 +287,7 @@ def _render_detail_table(breakdown):
                 "Nilai (Rp)": _fmt_rp(val),
                 "Porsi (%)": _fmt_pct(pct, 1),
             })
-        st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+            render_table(pd.DataFrame(rows), max_height="300px")
 
 
 # ==================== VARIANCE DECOMPOSITION ====================
@@ -429,10 +430,11 @@ def _render_variance_decomposition(ds, scope):
             lambda x: "🔴 Naik" if x > 0 else "🟢 Turun")
 
         st.markdown("**Detail Kontribusi:**")
-        st.dataframe(
+
+        render_table(
             df_table[["Komponen", "Nilai_Fmt", "Porsi_Fmt", "Arah"]].rename(columns={
                 "Nilai_Fmt": "Nilai (Rp)", "Porsi_Fmt": "Porsi"}),
-            width='stretch', hide_index=True)
+            max_height="300px")
 
     # Detail per Material
     st.markdown("##### 📋 Detail Perubahan per Material")
@@ -460,7 +462,7 @@ def _render_variance_decomposition(ds, scope):
             "Δ Cost": merged["Δ_Cost"].apply(
                 lambda x: f"+{_fmt_rp(x)}" if x >= 0 else f"−{_fmt_rp(abs(x))}"),
         })
-        st.dataframe(display, width='stretch', hide_index=True)
+        render_table(display, max_height="400px")
 
     top_k, top_v = max(dec.as_dict().items(), key=lambda kv: abs(kv[1]))
     pct = abs(top_v) / abs(dec.total) * 100 if dec.total else 0

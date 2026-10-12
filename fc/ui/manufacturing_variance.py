@@ -334,7 +334,8 @@ def _render_table(tbl):
     display = display.rename(columns={
         "Variance_Pct": "Variance %",
         "Utilization_Pct": "Utilization %"})
-    st.dataframe(display, width='stretch', hide_index=True)
+    from .components import render_table
+    render_table(display, max_height="400px")
 
 
 def render(ds: Dataset, scope) -> None:

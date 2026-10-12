@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit as st
 
 from .. import audit
+from .components import render_table
 
 
 GLASS_CSS = """
@@ -200,14 +201,14 @@ def render(ds, scope) -> None:
     df = pd.DataFrame(logs)
     df = df[["timestamp", "user", "action", "source_label", "details"]]
     df.columns = ["Waktu", "User", "Aksi", "Sumber Data", "Detail"]
-    st.dataframe(df, width='stretch', hide_index=True)
+    render_table(df, max_height="500px")
 
     st.markdown("---")
     st.markdown("### 📊 Ringkasan Aksi")
     if len(df):
         summary = df["Aksi"].value_counts().reset_index()
         summary.columns = ["Aksi", "Jumlah"]
-        st.dataframe(summary, width='stretch', hide_index=True)
+        render_table(summary, max_height="300px")
 
     st.markdown("---")
     st.caption("📁 Database: `data/afc.db` (SQLite) — "

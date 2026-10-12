@@ -10,6 +10,7 @@ from .. import db
 from ..intel.memory import (compute_stats, compute_weekly_trend,
                              generate_insights, get_all_decisions_with_outcome)
 from .charts import CATEGORY_COLORS, COLORS, apply_theme
+from .components import render_table
 
 
 def _fmt_thousand(v, decimals: int = 0) -> str:
@@ -320,7 +321,7 @@ def _render_category(stats) -> None:
         df_display = df.copy()
         df_display["Porsi"] = (df_display["Jumlah"] / df_display["Jumlah"].sum() * 100).round(1)
         df_display["Porsi"] = df_display["Porsi"].apply(lambda x: f"{x}%")
-        st.dataframe(df_display, width='stretch', hide_index=True, height=340)
+        render_table(df_display, max_height="340px")
 
 
 def _render_log() -> None:
@@ -349,7 +350,7 @@ def _render_log() -> None:
         df["Keputusan"] = df["Keputusan"].map(lambda d:
             "✅ Disetujui" if "approve" in str(d).lower() else
             "❌ Ditolak" if "reject" in str(d).lower() else str(d))
-    st.dataframe(df, width='stretch', hide_index=True)
+    render_table(df, max_height="500px")
 
 
 def _render_outcome() -> None:

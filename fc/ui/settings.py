@@ -7,6 +7,7 @@ import streamlit as st
 
 from .. import audit, settings as settings_mgr
 from ..pipeline import Dataset
+from .components import render_table
 
 
 def _fmt_thousand(v, decimals: int = 0) -> str:
@@ -337,7 +338,7 @@ def _render_history() -> None:
             changes_str = "—"
         rows.append({"Waktu": h.get("timestamp", ""), "User": h.get("user", ""),
                      "Aksi": h.get("action", ""), "Perubahan": changes_str})
-    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+    render_table(pd.DataFrame(rows), max_height="400px")
 
 
 def render(ds: Dataset, scope) -> None:

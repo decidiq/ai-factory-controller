@@ -11,6 +11,7 @@ from ..intel.predictive import (detect_anomalies, forecast_output,
 from ..kpi import Scope, scope_production
 from ..pipeline import Dataset
 from .charts import COLORS, apply_theme
+from .components import render_table
 
 
 def _fmt_thousand(v, decimals: int = 0) -> str:
@@ -378,8 +379,8 @@ def _render_anomaly(ds: Dataset, scope: Scope) -> None:
         cols = [c for c in ("Date", "Plant", "Line", "Machine",
                             "Output_Kg", "Scrap_Kg", "Scrap_Pct")
                 if c in result.anomalies.columns]
-        st.dataframe(result.anomalies[cols].reset_index(drop=True),
-                     width='stretch')
+        render_table(result.anomalies[cols].reset_index(drop=True),
+                     max_height="400px")
 
 
 def _render_stockout(ds: Dataset) -> None:
@@ -475,7 +476,7 @@ def _render_stockout(ds: Dataset) -> None:
             "Hari Tersisa": (_fmt_thousand(r.days_until_empty, 0)
                              if r.days_until_empty is not None else "—"),
             "Status": f"{icon} {r.status.capitalize()}"})
-    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+    render_table(pd.DataFrame(rows), max_height="350px")
 
 
 def _render_slow_moving(ds: Dataset) -> None:
@@ -522,7 +523,7 @@ def _render_slow_moving(ds: Dataset) -> None:
             "Prediksi 30 hari": (_fmt_thousand(r.predicted_days_30d, 0)
                                   if r.predicted_days_30d is not None else "—"),
             "Status": f"{icon} {r.risk_level.replace('_', ' ').title()}"})
-    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+    render_table(pd.DataFrame(rows), max_height="350px")
 
 
 def render(ds: Dataset, scope: Scope) -> None:

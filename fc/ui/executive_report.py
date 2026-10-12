@@ -430,7 +430,8 @@ def _render_mom(ds) -> None:
             "Status": status,
         })
     import pandas as pd
-    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+    from .components import render_table
+    render_table(pd.DataFrame(rows), max_height="350px")
 
 
 # ==================== VARIANCE & INVENTORY ====================
@@ -468,7 +469,8 @@ def _render_variance_and_inventory(ds) -> None:
                 except Exception:
                     pass
 
-            st.dataframe(tbl, width='stretch', hide_index=True)
+            from .components import render_table
+            render_table(tbl, max_height="350px")
 
     with col2:
         if ds.inventory is not None and not ds.inventory.empty:

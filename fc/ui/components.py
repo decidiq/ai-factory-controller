@@ -940,3 +940,87 @@ def dataframe_id(df, **kwargs):
     """
     formatted = fmt_df_id(df)
     st.dataframe(formatted, **kwargs)
+# ==================== HTML TABLE RENDERER (Fix dataframe kosong di production) ====================
+def render_table(df, max_height: str = "400px", compact: bool = False):
+    """
+    Render DataFrame sebagai HTML table yang fully dark-controllable.
+    Menggantikan st.dataframe() untuk konsistensi theme di production.
+
+    Args:
+        df: pandas DataFrame
+        max_height: tinggi maksimal (default 400px, scroll jika lebih)
+        compact: mode kompak (padding lebih kecil)
+    """
+    if df is None:
+        st.info("Tidak ada data untuk ditampilkan.")
+        return
+    try:
+        if df.empty:
+            st.info("Tidak ada data untuk ditampilkan.")
+            return
+    except Exception:
+        pass
+
+    padding = "6px 10px" if compact else "10px 14px"
+    font_size = "0.72rem" if compact else "0.78rem"
+
+    headers = "".join(f"<th>{c}</th>" for c in df.columns)
+
+    rows_html = []
+    for _, row in df.iterrows():
+        cells = []
+        for v in row:
+            s = "" if v is None else str(v)
+            cells.append(f"<td>{s}</td>")
+        rows_html.append(f"<tr>{''.join(cells)}</tr>")
+
+    html = f"""
+    <div style="
+        border: 1px solid #343858;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #1a1d3d;
+        margin: 8px 0 16px 0;
+        max-height: {max_height};
+        overflow-y: auto;
+        overflow-x: auto;
+    ">
+        <table class="dq-html-table" style="
+            width: 100%;
+            border-collapse: collapse;
+            font-size: {font_size};
+            font-family: 'DM Sans', sans-serif;
+        ">
+            <thead style="position: sticky; top: 0; z-index: 1;">
+                <tr style="background: #242844;">{headers}</tr>
+            </thead>
+            <tbody>{''.join(rows_html)}</tbody>
+        </table>
+    </div>
+    <style>
+    .dq-html-table th {{
+        background: #242844 !important;
+        color: #adb6d5 !important;
+        text-align: left;
+        padding: {padding};
+        border-bottom: 1px solid #343858;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 0.68rem;
+        white-space: nowrap;
+    }}
+    .dq-html-table td {{
+        color: #e6e8f6 !important;
+        padding: {padding};
+        border-bottom: 1px solid #2d3155;
+    }}
+    .dq-html-table tr:hover td {{
+        background: #242844;
+    }}
+    .dq-html-table tr:last-child td {{
+        border-bottom: 0;
+    }}
+    </style>
+    """
+    st.markdown(html, unsafe_allow_html=True)

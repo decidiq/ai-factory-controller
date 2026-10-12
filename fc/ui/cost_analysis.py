@@ -259,8 +259,9 @@ def _render_cogm_breakdown(breakdown):
         df_display["Nilai (Rp)"] = df_display["Nilai"].apply(_fmt_rp)
         df_display["Porsi (%)"] = (df_display["Nilai"] / total * 100).apply(lambda x: _fmt_pct(x, 1))
         st.markdown("**Detail Komponen:**")
-        st.dataframe(df_display[["Komponen", "Nilai (Rp)", "Porsi (%)"]],
-                     width='stretch', hide_index=True, height=380)
+        from .components import render_table
+        render_table(df_display[["Komponen", "Nilai (Rp)", "Porsi (%)"]],
+                     max_height="380px")
 
 
 def _render_pareto(ds, scope):

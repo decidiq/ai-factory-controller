@@ -44,6 +44,11 @@ def _fmt_rp(v) -> str:
         return str(v) if v is not None else "—"
 
 
+def _df_height(n_rows: int, row_px: int = 35, header_px: int = 45, max_px: int = 400) -> int:
+    """Hitung tinggi dataframe otomatis dari jumlah baris (max 400px)."""
+    return min(header_px + row_px * n_rows, max_px)
+
+
 # ==================== CSS ====================
 DASH_CSS = """
 <style>
@@ -269,35 +274,60 @@ def _render_kpi_vs_target(s, targets) -> None:
 def _render_alerts(s, targets) -> None:
     from .components import section_header
     alerts = compute_alerts(s, targets)
-    section_header("Cost Alert Aktif",
-                   "Peringatan otomatis dengan dampak finansial terukur",
-                   f"{len(alerts)} ALERT" if alerts else "AMAN")
+    section_header(
+        "Cost Alert Aktif",
+        "Peringatan otomatis dengan dampak finansial terukur",
+        f"{len(alerts)} ALERT" if alerts else "AMAN")
+
     if not alerts:
         st.success("✅ Tidak ada peringatan aktif. Semua KPI dalam batas target.")
         return
+
     total_annual = sum(abs(a.annual_rp) for a in alerts)
+
+    # Total banner (compact)
     if total_annual > 0:
         st.markdown(
             f'<div style="background:#302b30;border:1px solid #756036;'
-            f'border-radius:10px;padding:14px 18px;margin-bottom:14px;">'
-            f'<span style="color:#f7d578;font-weight:800;font-size:0.72rem;'
-            f'letter-spacing:0.06em;text-transform:uppercase;">Total Potensi Dampak</span>'
-            f'<div style="color:#ffffff;font-size:1.3rem;font-weight:800;'
-            f'margin-top:6px;letter-spacing:-0.02em;">'
+            f'border-radius:10px;padding:12px 16px;margin-bottom:10px;">'
+            f'<span style="color:#f7d578;font-weight:800;font-size:0.62rem;'
+            f'letter-spacing:0.08em;text-transform:uppercase;">💰 Total Potensi Dampak</span>'
+            f'<div style="color:#ffffff;font-size:1.1rem;font-weight:800;'
+            f'margin-top:4px;letter-spacing:-0.02em;">'
             f'{_fmt_rp(total_annual)} / tahun</div>'
-            f'<div style="color:#d8dcf2;font-size:0.75rem;margin-top:4px;">'
-            f'Potensi penghematan jika semua masalah diperbaiki.</div></div>',
+            f'</div>',
             unsafe_allow_html=True)
+
+    # Compact alert cards
     for a in alerts:
-        icon = {"high": "🔴", "medium": "🟡", "info": "🔵"}.get(a.severity, "⚪")
-        text = (
-            f"{icon} **{a.title}**  \n{a.message}  \n"
-            f"💰 **{_fmt_rp(a.monthly_rp)}/bulan · {_fmt_rp(a.annual_rp)}/tahun**  \n"
-            f"🔧 {a.fix_hint}"
-        )
-        if a.severity == "high": st.error(text)
-        elif a.severity == "medium": st.warning(text)
-        else: st.info(text)
+        icon_map = {"high": "🔴", "medium": "🟡", "info": "🔵"}
+        border_map = {"high": "#ff9eaa", "medium": "#f7d578", "info": "#71d5e9"}
+        bg_map = {"high": "#35243a", "medium": "#302b30", "info": "#242748"}
+
+        icon = icon_map.get(a.severity, "⚪")
+        border = border_map.get(a.severity, "#adb6d5")
+        bg = bg_map.get(a.severity, "#242748")
+
+        st.markdown(
+            f'<div style="background:{bg};border:1px solid #343858;'
+            f'border-left:4px solid {border};border-radius:10px;'
+            f'padding:12px 14px;margin-bottom:8px;">'
+            f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
+            f'<span style="font-size:0.9rem;">{icon}</span>'
+            f'<span style="color:#f5f6ff;font-weight:700;font-size:0.85rem;'
+            f'letter-spacing:-0.01em;">{a.title}</span>'
+            f'</div>'
+            f'<div style="color:#adb6d5;font-size:0.78rem;line-height:1.4;'
+            f'margin-bottom:6px;">{a.message}</div>'
+            f'<div style="display:flex;justify-content:space-between;'
+            f'align-items:center;gap:12px;flex-wrap:wrap;">'
+            f'<span style="color:#f7d578;font-weight:700;font-size:0.72rem;">'
+            f'💰 {_fmt_rp(a.monthly_rp)}/bln · {_fmt_rp(a.annual_rp)}/thn</span>'
+            f'<span style="color:#8793bc;font-size:0.7rem;font-style:italic;">'
+            f'🔧 {a.fix_hint}</span>'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True)
 
 
 # ==================== ANALYSIS ====================
@@ -377,7 +407,10 @@ def _render_monthly(ds: Dataset) -> None:
             "Δ": c.fmt_delta(), "Δ %": c.fmt_pct(), "Status": status,
         })
     import pandas as pd
-    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+    df_mom = pd.DataFrame(rows)
+    from .components import render_table
+    render_table(df_mom, max_height="400px")
+
     worsening = [c for c in comps if c.is_improving is False]
     if worsening:
         labels = ", ".join(c.label for c in worsening)

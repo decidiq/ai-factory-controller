@@ -10,7 +10,7 @@ from ..pipeline import Dataset
 from .charts import COLORS, apply_theme
 from .components import (page_header, mini_health_score,
                          format_period_label, compute_health_score,
-                         section_divider)
+                         section_divider, render_table)
 
 
 def _fmt_thousand(v, decimals: int = 0) -> str:
@@ -388,11 +388,11 @@ def render(ds: Dataset, scope) -> None:
         return
     if "Risk" not in risk.columns:
         st.error("Sheet Risk_Register harus punya kolom **Risk**.")
-        st.dataframe(risk.head(20), width='stretch')
+        render_table(risk.head(20), max_height="400px")
         return
     if not {"Probability_Val", "Impact_Val"} <= set(risk.columns):
         st.error("Sheet Risk_Register butuh **Probability_Val** & **Impact_Val** (skala 1-3).")
-        st.dataframe(risk, width='stretch', hide_index=True)
+        render_table(risk, max_height="500px")
         return
 
     tbl = risk_table(risk)

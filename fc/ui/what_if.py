@@ -9,7 +9,7 @@ from ..kpi import Scope, cogm_for_scope, scope_production, summarize
 from ..pipeline import Dataset
 from .components import (page_header, mini_health_score,
                          format_period_label, compute_health_score,
-                         section_divider)
+                         section_divider, render_table)
 
 
 def _fmt_thousand(v, decimals: int = 0) -> str:
@@ -277,8 +277,8 @@ def _render_saved_scenarios():
     rename_map = {"name": "Nama", "yield": "Yield (%)", "scrap": "Scrap (%)",
                   "resin": "Δ Harga (%)", "volume": "Δ Volume (%)",
                   "cogm": "COGM", "cost_kg": "Cost/Kg"}
-    st.dataframe(display_df[display_cols].rename(columns=rename_map),
-                 width='stretch', hide_index=True)
+    render_table(display_df[display_cols].rename(columns=rename_map),
+                 max_height="300px")
     c1, c2 = st.columns([1, 4], gap="medium")
     with c1:
         if st.button("🗑 Hapus Semua", width='stretch'):
