@@ -297,15 +297,15 @@ def _render_variance_decomposition(ds, scope):
 
     periods = _periods(ds.raw_material)
     if len(periods) < 2:
-        st.info("Butuh minimal **2 periode** di kolom **Period** sheet Raw_Material.")
+        st.info("Butuh minimal **2 periode** di kolom **Period** sheet biaya.")
         return None
 
     partials = detect_partial_periods(ds.production)
     c1, c2 = st.columns(2, gap="medium")
     p_prev = c1.selectbox("Periode Sebelumnya", periods,
-                          index=max(0, len(periods) - 2), key="dna_prev_v2")
+                          index=max(0, len(periods) - 2), key="dna_prev_v3")
     p_curr = c2.selectbox("Periode Sekarang", periods,
-                          index=len(periods) - 1, key="dna_curr_v2")
+                          index=len(periods) - 1, key="dna_curr_v3")
 
     if p_prev in partials:
         partial_warning_banner({p_prev}, ds.production)
@@ -316,6 +316,51 @@ def _render_variance_decomposition(ds, scope):
         st.warning("Pilih periode yang berbeda.")
         return None
 
+    # ============================================================
+    # SECTION A: BREAKDOWN PER KOMPONEN BIAYA (BARU)
+    # ============================================================
+    st.markdown("##### 📋 Variance per Komponen Biaya")
+    st.caption(f"Perbandingan tiap komponen COGM antara **{p_prev}** dan **{p_curr}**.")
+
+    from ..intel.cost_dna import component_variance_from_cogm
+    comp_df = component_variance_from_cogm(ds, p_prev, p_curr, scope=scope)
+
+    if comp_df.empty:
+        st.info("Tidak ada perubahan komponen yang signifikan antar periode ini.")
+    else:
+        # Format untuk display
+        comp_display = comp_df.copy()
+        comp_display["Sebelum"] = comp_display["Sebelum"].apply(_fmt_rp)
+        comp_display["Sekarang"] = comp_display["Sekarang"].apply(_fmt_rp)
+        comp_display["Δ"] = comp_display["Δ"].apply(
+            lambda x: f"+{_fmt_rp(x)}" if x > 0 else f"−{_fmt_rp(abs(x))}")
+        comp_display["Δ %"] = comp_display["Δ %"].apply(
+            lambda x: f"{x:+.1f}%".replace(".", ","))
+
+        # Tampilkan total perubahan
+        total_delta = comp_df["Δ"].sum()
+        is_up = total_delta > 0
+        st.markdown(
+            f'<div style="background:#1b1e3e;border:1px solid #343858;'
+            f'border-left:4px solid {"#ff9eaa" if is_up else "#77edb4"};'
+            f'border-radius:10px;padding:12px 16px;margin:8px 0 16px 0;">'
+            f'<div style="color:#adb6d5;font-size:0.68rem;font-weight:700;'
+            f'letter-spacing:0.06em;text-transform:uppercase;">'
+            f'Total Perubahan COGM</div>'
+            f'<div style="color:#ffffff;font-size:1.3rem;font-weight:800;'
+            f'margin-top:4px;">'
+            f'{"+" if is_up else "−"}{_fmt_rp(abs(total_delta))}</div>'
+            f'</div>',
+            unsafe_allow_html=True)
+
+        render_table(comp_display, max_height="400px")
+
+    # ============================================================
+    # SECTION B: DECOMPOSITION DRIVER (price/volume/mix/eff) — EXISTING
+    # ============================================================
+    st.markdown("##### 🎯 Analisis Driver Material")
+    st.caption("Urai perubahan biaya **Material** jadi harga, volume, mix, dan efisiensi.")
+
     rm = ds.raw_material
     prev = rm[rm["Period"] == p_prev] if "Period" in rm.columns else pd.DataFrame()
     curr = rm[rm["Period"] == p_curr] if "Period" in rm.columns else pd.DataFrame()
@@ -324,22 +369,23 @@ def _render_variance_decomposition(ds, scope):
         return None
 
     dec = _cached_decompose(curr, prev, scope.plant)
+
     if abs(dec.total) < 1:
-        st.success("Tidak ada perubahan signifikan pada COGM antara 2 periode.")
+        st.success("Tidak ada perubahan signifikan pada biaya Material.")
         return None
 
-    cogm_prev = prev["Cost"].sum() if "Cost" in prev.columns else 0
-    cogm_curr = curr["Cost"].sum() if "Cost" in curr.columns else 0
+    cogm_prev_mat = prev["Cost"].sum() if "Cost" in prev.columns else 0
+    cogm_curr_mat = curr["Cost"].sum() if "Cost" in curr.columns else 0
     is_up = dec.total > 0
 
     m1, m2, m3 = st.columns(3, gap="medium")
-    _glass_metric(m1, f"COGM {p_prev}", _fmt_rp(cogm_prev),
-                  accent="#adb6d5", note=f"Rp {_fmt_thousand(cogm_prev)}")
-    _glass_metric(m2, f"COGM {p_curr}", _fmt_rp(cogm_curr),
-                  delta=f"Rp {_fmt_thousand(cogm_curr - cogm_prev)}",
+    _glass_metric(m1, f"Material {p_prev}", _fmt_rp(cogm_prev_mat),
+                  accent="#adb6d5", note=f"Rp {_fmt_thousand(cogm_prev_mat)}")
+    _glass_metric(m2, f"Material {p_curr}", _fmt_rp(cogm_curr_mat),
+                  delta=f"Rp {_fmt_thousand(cogm_curr_mat - cogm_prev_mat)}",
                   delta_color=("#ff9eaa" if is_up else "#77edb4"),
-                  accent="#a489ff", note=f"Rp {_fmt_thousand(cogm_curr)}")
-    _glass_metric(m3, "Total Perubahan", _fmt_rp(dec.total),
+                  accent="#a489ff", note=f"Rp {_fmt_thousand(cogm_curr_mat)}")
+    _glass_metric(m3, "Total Perubahan Material", _fmt_rp(dec.total),
                   delta=("▲ NAIK" if is_up else "▼ TURUN"),
                   delta_color=("#ff9eaa" if is_up else "#77edb4"),
                   accent="#f7d578")
@@ -347,8 +393,8 @@ def _render_variance_decomposition(ds, scope):
     st.markdown("")
 
     # Waterfall Variance
-    st.markdown("##### 🌊 Waterfall Variance")
-    st.caption(f"Dari COGM {p_prev} → kontribusi tiap komponen → COGM {p_curr}.")
+    st.markdown("##### 🌊 Waterfall Variance (Material)")
+    st.caption(f"Dari Material {p_prev} → kontribusi tiap driver → Material {p_curr}.")
 
     components = [
         ("Harga Material", dec.price),
@@ -362,9 +408,9 @@ def _render_variance_decomposition(ds, scope):
         st.info("Tidak ada komponen variance yang signifikan (≥ Rp 1 jt).")
         return dec
 
-    labels = ["COGM " + p_prev] + [k for k, v in components] + ["COGM " + p_curr]
+    labels = ["Material " + p_prev] + [k for k, v in components] + ["Material " + p_curr]
     measures = ["absolute"] + ["relative"] * len(components) + ["total"]
-    values = [cogm_prev] + [v for k, v in components] + [cogm_curr]
+    values = [cogm_prev_mat] + [v for k, v in components] + [cogm_curr_mat]
 
     text_labels = []
     for i, v in enumerate(values):
@@ -385,16 +431,16 @@ def _render_variance_decomposition(ds, scope):
     fig = apply_theme(fig, height=500)
     fig.update_layout(
         showlegend=False,
-        yaxis=dict(title=dict(text="<b>Nilai COGM (Rp)</b>", font=dict(size=12)),
+        yaxis=dict(title=dict(text="<b>Nilai Material (Rp)</b>", font=dict(size=12)),
                    tickformat=",.0f", tickfont=dict(size=10)),
-        xaxis=dict(title=dict(text="<b>Komponen</b>", font=dict(size=12)),
+        xaxis=dict(title=dict(text="<b>Driver</b>", font=dict(size=12)),
                    tickfont=dict(size=11)),
         margin=dict(t=60, b=80, l=80, r=40))
     st.plotly_chart(fig, width='stretch')
 
     # Pie Kontribusi
-    st.markdown("##### 🥧 Kontribusi Tiap Komponen")
-    st.caption("Porsi pengaruh masing-masing komponen terhadap total perubahan.")
+    st.markdown("##### 🥧 Kontribusi Tiap Driver Material")
+    st.caption("Porsi pengaruh masing-masing driver terhadap total perubahan Material.")
 
     df_pie = pd.DataFrame([
         {"Komponen": k, "Pengaruh": abs(v), "Nilai": v} for k, v in components
@@ -425,60 +471,31 @@ def _render_variance_decomposition(ds, scope):
         df_table = df_pie.copy()
         df_table["Nilai_Fmt"] = df_table["Nilai"].apply(
             lambda x: f"+{_fmt_rp(x)}" if x > 0 else f"−{_fmt_rp(abs(x))}")
-        df_table["Porsi_Fmt"] = df_table["Porsi_%"].apply(lambda x: _fmt_pct(x, 1))
+        df_table["Porsi_Fmt"] = df_table["Porsi_%"].apply(lambda x: f"{x:.1f}%".replace(".", ","))
         df_table["Arah"] = df_table["Nilai"].apply(
             lambda x: "🔴 Naik" if x > 0 else "🟢 Turun")
 
-        st.markdown("**Detail Kontribusi:**")
-
+        st.markdown("**Detail Kontribusi Driver:**")
         render_table(
             df_table[["Komponen", "Nilai_Fmt", "Porsi_Fmt", "Arah"]].rename(columns={
                 "Nilai_Fmt": "Nilai (Rp)", "Porsi_Fmt": "Porsi"}),
-            max_height="300px")
+            max_height="360px")
 
-    # Detail per Material
-    st.markdown("##### 📋 Detail Perubahan per Material")
-    st.caption("Material mana yang paling berkontribusi terhadap perubahan?")
-
-    if "Material" in prev.columns and "Material" in curr.columns:
-        prev_agg = prev.groupby("Material", as_index=False).agg(
-            Qty_Prev=("Qty_Kg", "sum"), Cost_Prev=("Cost", "sum"))
-        curr_agg = curr.groupby("Material", as_index=False).agg(
-            Qty_Curr=("Qty_Kg", "sum"), Cost_Curr=("Cost", "sum"))
-        merged = prev_agg.merge(curr_agg, on="Material", how="outer").fillna(0)
-        merged["Δ_Cost"] = merged["Cost_Curr"] - merged["Cost_Prev"]
-        merged["Δ_Qty"] = merged["Qty_Curr"] - merged["Qty_Prev"]
-        merged["Abs_Delta"] = merged["Δ_Cost"].abs()
-        merged = merged.sort_values("Abs_Delta", ascending=False).drop(columns="Abs_Delta")
-
-        display = pd.DataFrame({
-            "Material": merged["Material"],
-            "Qty Sebelum": merged["Qty_Prev"].apply(lambda x: f"{_fmt_thousand(x)} kg"),
-            "Qty Sekarang": merged["Qty_Curr"].apply(lambda x: f"{_fmt_thousand(x)} kg"),
-            "Δ Qty": merged["Δ_Qty"].apply(
-                lambda x: f"+{_fmt_thousand(x)} kg" if x >= 0 else f"−{_fmt_thousand(abs(x))} kg"),
-            "Cost Sebelum": merged["Cost_Prev"].apply(_fmt_rp),
-            "Cost Sekarang": merged["Cost_Curr"].apply(_fmt_rp),
-            "Δ Cost": merged["Δ_Cost"].apply(
-                lambda x: f"+{_fmt_rp(x)}" if x >= 0 else f"−{_fmt_rp(abs(x))}"),
-        })
-        render_table(display, max_height="400px")
-
+    # Penyebab utama
     top_k, top_v = max(dec.as_dict().items(), key=lambda kv: abs(kv[1]))
     pct = abs(top_v) / abs(dec.total) * 100 if dec.total else 0
 
     st.markdown(f"""
     <div class="penyebab-banner">
-        <div class="penyebab-label">🎯 Penyebab Utama Perubahan COGM</div>
+        <div class="penyebab-label">🎯 Driver Utama Perubahan Material</div>
         <div class="penyebab-title">{top_k}</div>
         <div class="penyebab-desc">
-            Kontribusi <strong>{_fmt_rp(top_v)}</strong> ({_fmt_pct(pct, 0)} dari total perubahan)
+            Kontribusi <strong>{_fmt_rp(top_v)}</strong> ({_fmt_pct(pct, 0)} dari total perubahan Material)
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     return dec
-
 
 # ==================== MAIN ====================
 def render(ds: Dataset, scope: Scope) -> None:

@@ -86,3 +86,77 @@ def waterfall_cogm(breakdown):
     df = pd.DataFrame(list(breakdown.items()), columns=["Category", "Cost"])
     df = df[df["Cost"] > 0].sort_values("Cost", ascending=False)
     return df.reset_index(drop=True)
+def component_variance_from_cogm(ds, prev_period, curr_period, scope=None):
+    """
+    Breakdown variance COGM per KOMPONEN BIAYA.
+    
+    Menggunakan cogm_for_scope() yang sudah tahu cara parse semua sheet:
+    Raw_Material, Packaging, Direct_Labor, Utility, Maintenance, Depreciation.
+    
+    Return DataFrame dengan kolom:
+      Komponen | Sebelum | Sekarang | Δ | Δ % | Status
+    """
+    try:
+        from ..kpi import cogm_for_scope
+    except ImportError:
+        return pd.DataFrame()
+
+    costs = getattr(ds, "costs", None)
+    prod = getattr(ds, "production", None)
+    if costs is None or costs.empty or "Period" not in costs.columns:
+        return pd.DataFrame()
+
+    # Filter per periode
+    prev_costs = costs[costs["Period"] == prev_period].copy()
+    curr_costs = costs[costs["Period"] == curr_period].copy()
+    if prev_costs.empty or curr_costs.empty:
+        return pd.DataFrame()
+
+    # Filter produksi per periode
+    def _prod_for_period(p):
+        if prod is None or prod.empty or "Date" not in prod.columns:
+            return pd.DataFrame()
+        df = prod.copy()
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+        df = df.dropna(subset=["Date"])
+        df["Period"] = df["Date"].dt.strftime("%Y-%m")
+        return df[df["Period"] == p]
+
+    prev_prod = _prod_for_period(prev_period)
+    curr_prod = _prod_for_period(curr_period)
+
+    # Dapatkan breakdown COGM untuk kedua periode
+    try:
+        _, prev_bd = cogm_for_scope(prev_costs, prev_prod, scope)
+        _, curr_bd = cogm_for_scope(curr_costs, curr_prod, scope)
+    except Exception:
+        return pd.DataFrame()
+
+    if not prev_bd and not curr_bd:
+        return pd.DataFrame()
+
+    # Merge semua keys
+    all_keys = sorted(set(prev_bd.keys()) | set(curr_bd.keys()))
+    rows = []
+    for k in all_keys:
+        v_prev = float(prev_bd.get(k, 0))
+        v_curr = float(curr_bd.get(k, 0))
+        delta = v_curr - v_prev
+        pct = (delta / v_prev * 100) if v_prev else 0
+        if abs(delta) < 1:  # skip komponen yang tidak berubah
+            continue
+        rows.append({
+            "Komponen": k,
+            "Sebelum": v_prev,
+            "Sekarang": v_curr,
+            "Δ": delta,
+            "Δ %": pct,
+            "Status": "🔴 Naik" if delta > 0 else "🟢 Turun",
+        })
+
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows)
+    df = df.sort_values("Δ", key=lambda s: s.abs(), ascending=False).reset_index(drop=True)
+    return df

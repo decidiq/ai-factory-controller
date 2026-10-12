@@ -5,11 +5,11 @@ import pandas as pd
 
 # ==================== DEV MODE (JANGAN COMMIT SAAT TRUE) ====================
 # ⚠️ Set DEV_BYPASS_LOGIN = False sebelum push ke production!
-DEV_BYPASS_LOGIN = True             # True = skip login (untuk video/screenshot)
+DEV_BYPASS_LOGIN = False         # False = login page muncul
 DEV_SHOW_BANNER = False             # False = banner DEV mode disembunyikan
 DEV_DEFAULT_ROLE = "Factory Manager / Plant Controller"
 DEV_DEFAULT_USERNAME = "demo.manager"
-DEV_SHOW_ALL_MENUS = True           # True = tampilkan SEMUA menu (untuk video)
+DEV_SHOW_ALL_MENUS = False           # True = tampilkan SEMUA menu (untuk video)
 # ===========================================================================
 
 @dataclass(frozen=True)
