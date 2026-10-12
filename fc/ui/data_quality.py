@@ -8,69 +8,71 @@ from ..schema import SHEETS
 _LEVEL = {"required": "Wajib", "kpi": "Untuk KPI", "optional": "Opsional"}
 
 
-# ==================== CSS GLASSMORPHISM ====================
+# ==================== CSS GLASSMORPHISM — DARK ====================
 GLASS_CSS = """
 <style>
 .dq-glass {
     position: relative;
-    background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
-    border: 1px solid rgba(196, 181, 253, 0.5);
-    border-radius: 16px;
+    background: #1b1e3e;
+    border: 1px solid #343858;
+    border-radius: 12px;
     padding: 16px 18px;
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 9px 30px rgba(6, 9, 23, 0.13);
+    transition: transform 0.2s ease, border-color 0.2s ease;
     overflow: hidden;
-    min-height: 100px;
-    margin-bottom: 8px;
+    min-height: 110px;
 }
 .dq-glass::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--accent, #8B5CF6) 0%, #EC4899 100%);
+    top: 0; left: 17px;
+    width: 35px; height: 3px;
+    background: var(--accent, #a489ff);
+    border-radius: 0 0 5px 5px;
 }
 .dq-glass:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 16px 32px rgba(139, 92, 246, 0.18);
-    border-color: rgba(139, 92, 246, 0.6);
+    transform: translateY(-2px);
+    border-color: #8c79d7;
+    box-shadow: 0 10px 24px rgba(8, 8, 33, 0.45);
 }
 .dq-glass-label {
-    color: #6D28D9;
-    font-weight: 700;
-    font-size: 0.66rem;
+    color: #b8bedb;
+    font-weight: 600;
+    font-size: 0.62rem;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.06em;
     margin-bottom: 6px;
 }
 .dq-glass-value {
-    color: #0F172A;
+    color: #ffffff;
     font-weight: 800;
-    font-size: 1.45rem;
-    letter-spacing: -0.5px;
-    line-height: 1.1;
+    font-size: 1.55rem;
+    letter-spacing: -0.04em;
+    line-height: 1.15;
     margin-bottom: 4px;
 }
 .dq-glass-note {
-    color: #94A3B8;
+    color: #8793bc;
     font-size: 0.68rem;
-    font-style: italic;
     line-height: 1.3;
+    margin-top: 6px;
 }
 .dq-glass-delta {
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.03em;
+    margin-top: 6px;
+    text-transform: uppercase;
 }
 
 /* Banner */
 .dq-banner {
-    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
+    background: linear-gradient(110deg, #30265e, #211b47 55%, #171b3c);
+    border: 1px solid #5e5090;
     border-radius: 16px;
-    padding: 20px 26px;
-    color: white;
-    box-shadow: 0 12px 32px rgba(30, 27, 75, 0.25);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    padding: 22px 26px;
+    color: #ffffff;
+    box-shadow: 0 9px 30px rgba(6, 9, 23, 0.13);
     margin-bottom: 20px;
     position: relative;
     overflow: hidden;
@@ -84,31 +86,30 @@ GLASS_CSS = """
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 4px;
-    background: linear-gradient(90deg, var(--b-accent, #10B981) 0%, #EC4899 100%);
+    background: linear-gradient(90deg, var(--b-accent, #77edb4) 0%, #71d5e9 100%);
 }
 .dq-block { flex: 1; min-width: 160px; }
 .dq-block-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     margin-bottom: 6px;
 }
 .dq-block-value {
     font-size: 1.8rem;
-    font-weight: 900;
-    color: #FFFFFF;
-    letter-spacing: -1px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.04em;
     line-height: 1.1;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
 .dq-block-sub {
     font-size: 0.75rem;
-    color: #94A3B8;
+    color: #adb6d5;
 }
 </style>
 """
-
 
 def _inject_css():
     st.markdown(GLASS_CSS, unsafe_allow_html=True)

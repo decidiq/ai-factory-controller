@@ -144,8 +144,8 @@ CSS = """
 .dq-section-divider {
     margin: 32px 0 20px 0;
     padding: 18px 24px;
-    background: linear-gradient(90deg, var(--s-bg1, #F5F3FF) 0%, var(--s-bg2, #FFFFFF) 100%);
-    border-left: 5px solid var(--s-color, #8B5CF6);
+    background: linear-gradient(90deg, #242748 0%, #1a1d3d 100%);
+    border-left: 5px solid var(--s-color, #a489ff);
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -159,13 +159,13 @@ CSS = """
 .dq-section-divider-title {
     font-size: 1.2rem;
     font-weight: 800;
-    color: #1E1B4B;
-    letter-spacing: -0.3px;
+    color: #f5f6ff;
+    letter-spacing: -0.03em;
     margin-bottom: 3px;
 }
 .dq-section-divider-sub {
     font-size: 0.82rem;
-    color: #64748B;
+    color: #adb6d5;
     line-height: 1.4;
 }
 .dq-section-divider-badge {
@@ -574,3 +574,369 @@ def is_filter_too_narrow(prod_df, unfiltered_df=None) -> bool:
     has_unfiltered = unfiltered_df is not None and len(unfiltered_df) > 0
     has_filtered = prod_df is not None and len(prod_df) > 0
     return has_unfiltered and not has_filtered
+# ==================== PREMIUM COMPONENTS (Fase 1) ====================
+
+def metric_card(label: str, value: str, help_text: str = "",
+                delta: str = None, delta_color: str = "#32731E",
+                icon: str = "") -> None:
+    """KPI card premium — label uppercase, value besar, optional delta.
+
+    Args:
+        label: Nama KPI (auto-uppercase via CSS)
+        value: Nilai utama (sudah diformat)
+        help_text: Subtitle kecil di bawah value (opsional)
+        delta: Teks delta (mis. "+3.2%"), opsional
+        delta_color: Warna delta (default hijau)
+        icon: Emoji/ikon di kiri label (opsional)
+    """
+    icon_html = f'<span style="margin-right:6px;">{icon}</span>' if icon else ""
+    help_html = (
+        f'<div style="font-size:0.72rem;color:#687080;margin-top:6px;'
+        f'line-height:1.4;">{help_text}</div>'
+        if help_text else ""
+    )
+    delta_html = (
+        f'<span style="color:{delta_color};font-weight:700;font-size:0.8rem;'
+        f'margin-left:8px;">{delta}</span>'
+        if delta else ""
+    )
+    html = (
+        f'<div style="background:#FFFFFF;border:1px solid #E7E0F1;'
+        f'border-radius:12px;padding:18px 20px;height:100%;'
+        f'box-shadow:0 1px 3px rgba(45,26,91,0.04);">'
+        f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;'
+        f'text-transform:uppercase;color:#687080;margin-bottom:12px;">'
+        f'{icon_html}{label}</div>'
+        f'<div style="font-size:1.65rem;font-weight:800;letter-spacing:-0.04em;'
+        f'color:#262730;line-height:1.15;">{value}{delta_html}</div>'
+        f'{help_html}'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def status_badge(status: str) -> str:
+    """Return HTML string badge untuk status. Pakai di st.markdown(..., unsafe_allow_html=True).
+
+    Status yang didukung: Healthy, Watch, Critical, Good, Excellent, Fair, Needs Attention.
+    """
+    styles = {
+        "Healthy":          ("#E8F6DF", "#32731E"),
+        "Watch":            ("#FFF5D6", "#876007"),
+        "Critical":         ("#FFE9E9", "#B52C36"),
+        "Good":             ("#E8F6DF", "#32731E"),
+        "Excellent":        ("#E8F6DF", "#32731E"),
+        "Fair":             ("#FFF5D6", "#876007"),
+        "Needs Attention":  ("#FFE9E9", "#B52C36"),
+    }
+    bg, fg = styles.get(status, ("#F1F5F9", "#475569"))
+    return (
+        f'<span style="display:inline-block;background:{bg};color:{fg};'
+        f'border-radius:999px;padding:4px 10px;font-size:0.68rem;'
+        f'font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">'
+        f'{status}</span>'
+    )
+
+
+def panel_card(title: str = "", subtitle: str = "", icon: str = "") -> None:
+    """Header untuk panel. Panggil DI DALAM `with st.container(border=True)`.
+
+    Usage:
+        with st.container(border=True):
+            panel_card("Cost by Plant", "Simulated calculation", "💰")
+            st.bar_chart(...)
+    """
+    icon_html = f'{icon} ' if icon else ""
+    subtitle_html = (
+        f'<div style="font-size:0.8rem;color:#687080;margin-top:4px;'
+        f'line-height:1.4;">{subtitle}</div>'
+        if subtitle else ""
+    )
+    html = (
+        f'<div style="margin-bottom:16px;">'
+        f'<div style="font-size:1.15rem;font-weight:800;color:#1E1B4B;'
+        f'letter-spacing:-0.3px;">{icon_html}{title}</div>'
+        f'{subtitle_html}'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+# ==================== DARK THEME COMPONENTS (Fase 2) ====================
+
+def score_panel(score: float, status: str, summary: str,
+                delta_text: str = "", accent: str = "#a489ff") -> None:
+    """Hero banner: score besar + progress bar."""
+    pct_val = max(0, min(100, score))
+    delta_html = (
+        f'<p style="font-size:0.75rem;color:#adb6d5;margin-top:12px;">{delta_text}</p>'
+        if delta_text else ""
+    )
+    html = (
+        f'<section style="background:linear-gradient(110deg,#30265e,#211b47 55%,#171b3c);'
+        f'border:1px solid #5e5090;border-radius:16px;padding:26px 28px;'
+        f'box-shadow:0 9px 30px rgba(6,9,23,0.13);">'
+        f'<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(210px,38%);'
+        f'gap:24px;align-items:center;">'
+        f'<div>'
+        f'<p style="font-size:0.62rem;color:#c9b9f8;font-weight:800;'
+        f'letter-spacing:0.12em;text-transform:uppercase;margin:0;">OVERALL PERFORMANCE SCORE</p>'
+        f'<div style="display:flex;align-items:baseline;gap:12px;margin-top:10px;">'
+        f'<strong style="font-size:3.4rem;font-weight:800;letter-spacing:-0.045em;'
+        f'line-height:1;color:#ffffff;">{pct_val:.0f}</strong>'
+        f'<span style="font-size:1rem;color:#c8c2ee;">/ 100</span>'
+        f'</div>'
+        f'<p style="color:#e3defa;line-height:1.55;margin-top:14px;font-size:0.85rem;">{summary}</p>'
+        f'</div>'
+        f'<div>'
+        f'<div style="display:flex;justify-content:space-between;gap:12px;'
+        f'font-weight:700;margin-bottom:12px;font-size:0.78rem;color:#d6d1f7;">'
+        f'<span>Performance index</span><span>{pct_val:.0f}%</span></div>'
+        f'<div style="height:8px;background:#55517e;border-radius:50px;overflow:hidden;">'
+        f'<span style="display:block;height:100%;width:{pct_val}%;'
+        f'background:linear-gradient(90deg,#9a7af8,#6cdae7);border-radius:50px;'
+        f'transition:width .35s;"></span></div>'
+        f'{delta_html}'
+        f'</div>'
+        f'</div>'
+        f'</section>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def section_header(title: str, note: str = "", badge: str = "") -> None:
+    """Section header: title + note di kiri, badge di kanan."""
+    badge_html = (
+        f'<span style="display:inline-flex;align-items:center;border:1px solid #765da7;'
+        f'background:#302650;color:#e3cfff;border-radius:30px;padding:6px 11px;'
+        f'font-weight:700;font-size:0.66rem;white-space:nowrap;'
+        f'letter-spacing:0.06em;">{badge}</span>'
+        if badge else ""
+    )
+    note_html = (
+        f'<p style="font-size:0.72rem;color:#adb6d5;margin:6px 0 0 0;'
+        f'line-height:1.4;">{note}</p>'
+        if note else ""
+    )
+    html = (
+        f'<div style="display:flex;justify-content:space-between;align-items:flex-end;'
+        f'gap:12px;margin-bottom:14px;">'
+        f'<div>'
+        f'<h2 style="font-size:1.35rem;font-weight:800;letter-spacing:-0.025em;'
+        f'color:#ffffff;margin:0;line-height:1.2;">{title}</h2>'
+        f'{note_html}'
+        f'</div>'
+        f'{badge_html}'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def kpi_card(label: str, value: str, note: str = "",
+             accent: str = "#a489ff", status: str = "",
+             status_color: str = "#adb6d5") -> None:
+    """KPI card dengan accent bar atas + label + value + status pill."""
+    note_html = (
+        f'<div style="font-size:0.68rem;color:#8793bc;margin-top:10px;'
+        f'line-height:1.35;">{note}</div>'
+        if note else ""
+    )
+    status_html = (
+        f'<span style="display:inline-flex;align-items:center;border-radius:6px;'
+        f'padding:3px 8px;font-size:0.62rem;font-weight:800;background:#343955;'
+        f'color:{status_color};margin-top:8px;letter-spacing:0.04em;'
+        f'text-transform:uppercase;">{status}</span>'
+        if status else ""
+    )
+    html = (
+        f'<div style="position:relative;background:#1b1e3e;'
+        f'border:1px solid #343858;border-radius:12px;padding:16px 17px;'
+        f'min-height:130px;height:100%;display:flex;flex-direction:column;'
+        f'justify-content:flex-start;">'
+        f'<span style="position:absolute;top:0;left:17px;width:35px;height:3px;'
+        f'background:{accent};border-radius:0 0 5px 5px;"></span>'
+        f'<div style="font-size:0.62rem;color:#b8bedb;font-weight:600;'
+        f'text-transform:uppercase;letter-spacing:0.06em;line-height:1.3;">'
+        f'{label}</div>'
+        f'<div style="font-size:1.55rem;font-weight:800;letter-spacing:-0.04em;'
+        f'margin:12px 0 0 0;color:#ffffff;line-height:1.15;">{value}</div>'
+        f'{status_html}'
+        f'{note_html}'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def highlight_card(title: str, body: str, color: str = "#77edb4",
+                   bg: str = "#172d35", line: str = "#276956") -> None:
+    """Colored info block (Pencapaian / Perhatian / Risiko / Rekomendasi)."""
+    html = (
+        f'<div style="padding:16px 18px;background:{bg};border:1px solid {line};'
+        f'border-radius:12px;min-height:120px;line-height:1.55;">'
+        f'<h3 style="color:{color};font-weight:800;font-size:1.05rem;'
+        f'margin:0 0 10px 0;letter-spacing:-0.02em;">{title}</h3>'
+        f'<p style="color:#d8dcf2;font-size:0.78rem;margin:0;'
+        f'line-height:1.55;">{body}</p>'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def filter_bar(*,
+               period_options=None,
+               plant_options=None,
+               key_prefix: str = "fb") -> dict:
+    """Filter bar standard. Return dict {period, plant}."""
+    period_options = period_options or ["Semua Periode"]
+    plant_options = plant_options or ["Semua Plant"]
+
+    c1, c2, c3 = st.columns([1, 1, 2], gap="small")
+    with c1:
+        period = st.selectbox("Periode", period_options, key=f"{key_prefix}_period")
+    with c2:
+        plant = st.selectbox("Plant", plant_options, key=f"{key_prefix}_plant")
+    return {"period": period, "plant": plant}
+# ==================== NUMBER FORMATTING (Indonesian) ====================
+import math as _math
+
+
+def fmt_thousand(v, decimals: int = 0):
+    """Format angka jadi string dengan titik ribuan Indonesia.
+
+    Contoh:
+        2889047350 → '2.889.047.350'
+        1234.5678  → '1.234,57'
+    """
+    try:
+        if v is None:
+            return "—"
+        f = float(v)
+        if _math.isnan(f) or _math.isinf(f):
+            return "—"
+        if decimals > 0:
+            return f"{f:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"{f:,.0f}".replace(",", ".")
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
+def fmt_pct(v, decimals: int = 2):
+    """Format persentase Indonesia. -3.7872 → '-3,79%'"""
+    try:
+        if v is None:
+            return "—"
+        f = float(v)
+        if _math.isnan(f) or _math.isinf(f):
+            return "—"
+        return f"{f:.{decimals}f}".replace(".", ",") + "%"
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
+def fmt_rp(v, decimals: int = 0, compact: bool = False):
+    """Format Rupiah.
+
+    compact=False: 'Rp 2.889.047.350'
+    compact=True:  'Rp 2,89 M' (miliar) / 'Rp 2,9 jt' (juta) / 'Rp 2,9 rb' (ribu)
+    """
+    try:
+        if v is None:
+            return "—"
+        f = float(v)
+        if _math.isnan(f) or _math.isinf(f):
+            return "—"
+        if compact:
+            if abs(f) >= 1_000_000_000:
+                return "Rp " + f"{f/1_000_000_000:.2f}".replace(".", ",") + " M"
+            if abs(f) >= 1_000_000:
+                return "Rp " + f"{f/1_000_000:.1f}".replace(".", ",") + " jt"
+            if abs(f) >= 1_000:
+                return "Rp " + f"{f/1_000:.1f}".replace(".", ",") + " rb"
+        if decimals > 0:
+            return "Rp " + f"{f:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return "Rp " + f"{f:,.0f}".replace(",", ".")
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
+# Pattern keyword untuk auto-detection
+_PCT_KEYWORDS = ("pct", "%", "percent", "persen", "rate", "ratio",
+                 "yield", "oee", "scrap", "utilization", "achievement")
+_RP_KEYWORDS = ("rp", "harga", "price", "biaya", "cost", "budget", "actual",
+                "variance", "revenue", "saving", "impact", "amount",
+                "cogm", "cash", "value", "nilai")
+_QTY_KEYWORDS = ("qty", "quantity", "volume", "unit", "kg", "pcs", "count",
+                 "rows", "baris", "jumlah", "stock", "usage",
+                 "output", "input")
+
+
+def fmt_df_id(df, thousand_cols=None, pct_cols=None, rp_cols=None, auto=True):
+    """Format semua kolom numerik di dataframe jadi string Indonesia.
+
+    Args:
+        df: pandas DataFrame
+        thousand_cols: kolom yang diformat dengan titik ribuan
+        pct_cols: kolom yang diformat sebagai persen
+        rp_cols: kolom yang diformat sebagai Rupiah
+        auto: True = auto-detect berdasarkan nama kolom
+
+    Returns:
+        DataFrame copy dengan kolom sudah diformat.
+    """
+    import pandas as pd
+
+    if df is None or (hasattr(df, "empty") and df.empty):
+        return df
+
+    out = df.copy()
+    thousand_cols = set(thousand_cols or [])
+    pct_cols = set(pct_cols or [])
+    rp_cols = set(rp_cols or [])
+
+    for col in out.columns:
+        col_str = str(col).lower()
+
+        # Explicit override
+        if col in pct_cols or col_str in pct_cols:
+            out[col] = out[col].apply(fmt_pct)
+            continue
+        if col in rp_cols or col_str in rp_cols:
+            out[col] = out[col].apply(fmt_rp)
+            continue
+        if col in thousand_cols or col_str in thousand_cols:
+            out[col] = out[col].apply(fmt_thousand)
+            continue
+
+        if not auto:
+            continue
+
+        # Skip non-numeric
+        if not pd.api.types.is_numeric_dtype(out[col]):
+            continue
+
+        # Auto-detect: pct → rp → qty → default numeric
+        if any(k in col_str for k in _PCT_KEYWORDS):
+            out[col] = out[col].apply(fmt_pct)
+        elif any(k in col_str for k in _RP_KEYWORDS):
+            out[col] = out[col].apply(fmt_rp)
+        elif any(k in col_str for k in _QTY_KEYWORDS):
+            out[col] = out[col].apply(fmt_thousand)
+        elif pd.api.types.is_integer_dtype(out[col]):
+            out[col] = out[col].apply(fmt_thousand)
+        elif pd.api.types.is_float_dtype(out[col]):
+            # Float besar → thousand; float kecil (ratio) → biarkan
+            try:
+                col_data = out[col].dropna()
+                if len(col_data) > 0 and col_data.abs().max() > 10:
+                    out[col] = out[col].apply(fmt_thousand)
+            except Exception:
+                pass
+
+    return out
+
+
+def dataframe_id(df, **kwargs):
+    """Wrapper st.dataframe dengan format Indonesia otomatis.
+
+    Pakai seperti: dataframe_id(df, width='stretch', hide_index=True)
+    """
+    formatted = fmt_df_id(df)
+    st.dataframe(formatted, **kwargs)

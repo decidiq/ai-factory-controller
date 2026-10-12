@@ -1,17 +1,16 @@
-"""Multi-Agent Collaboration - BELUM TERSEDIA di Tahap 1 (BRD 8)."""
+"""Multi-Agent Collaboration - COMING SOON di Tahap 5 (DARK)."""
 import streamlit as st
 
 
-# ==================== CSS ====================
 GLASS_CSS = """
 <style>
 .ma-banner {
-    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 60%, #4C1D95 100%);
+    background: linear-gradient(110deg, #30265e, #211b47 55%, #171b3c);
     border-radius: 18px;
     padding: 32px 36px;
-    color: white;
-    box-shadow: 0 12px 32px rgba(30, 27, 75, 0.25);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #ffffff;
+    box-shadow: 0 9px 30px rgba(6, 9, 23, 0.13);
+    border: 1px solid #5e5090;
     margin-bottom: 24px;
     position: relative;
     overflow: hidden;
@@ -22,53 +21,52 @@ GLASS_CSS = """
     top: -80px; right: -80px;
     width: 260px; height: 260px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(245, 158, 11, 0.35) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(247, 213, 120, 0.28) 0%, transparent 70%);
     pointer-events: none;
 }
 .ma-badge {
     display: inline-block;
-    background: rgba(245, 158, 11, 0.2);
-    color: #FBBF24;
-    font-size: 0.7rem;
+    background: rgba(247, 213, 120, 0.15);
+    color: #f7d578;
+    font-size: 0.66rem;
     font-weight: 800;
-    letter-spacing: 1.5px;
+    letter-spacing: 0.12em;
     padding: 5px 12px;
     border-radius: 999px;
-    border: 1px solid rgba(245, 158, 11, 0.4);
+    border: 1px solid rgba(247, 213, 120, 0.4);
     margin-bottom: 14px;
     position: relative;
     z-index: 1;
 }
 .ma-title {
-    font-size: 2rem;
-    font-weight: 900;
-    color: #FFFFFF;
-    letter-spacing: -1px;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.04em;
     line-height: 1.15;
     margin-bottom: 12px;
     position: relative;
     z-index: 1;
 }
 .ma-desc {
-    font-size: 0.95rem;
-    color: #C4B5FD;
+    font-size: 0.9rem;
+    color: #dce0f4;
     line-height: 1.6;
     max-width: 720px;
     position: relative;
     z-index: 1;
 }
-.ma-desc strong { color: #FBBF24; }
+.ma-desc strong { color: #f7d578; }
 
-/* Roadmap Card */
 .ma-roadmap {
     position: relative;
-    background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
-    border: 1px solid rgba(196, 181, 253, 0.5);
+    background: linear-gradient(145deg, #1a1d3d, #151933);
+    border: 1px solid #343858;
     border-radius: 14px;
     padding: 20px 22px;
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.08);
+    box-shadow: 0 9px 30px rgba(6, 9, 23, 0.13);
     margin-bottom: 14px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, border-color 0.2s ease;
     overflow: hidden;
 }
 .ma-roadmap::before {
@@ -76,12 +74,12 @@ GLASS_CSS = """
     position: absolute;
     top: 0; left: 0; bottom: 0;
     width: 4px;
-    background: linear-gradient(180deg, #8B5CF6 0%, #EC4899 100%);
+    background: linear-gradient(180deg, #a489ff 0%, #71d5e9 100%);
 }
 .ma-roadmap:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 32px rgba(139, 92, 246, 0.18);
-    border-color: rgba(139, 92, 246, 0.6);
+    border-color: #8c79d7;
+    box-shadow: 0 10px 24px rgba(8, 8, 33, 0.45);
 }
 .ma-roadmap-icon {
     font-size: 1.6rem;
@@ -89,27 +87,28 @@ GLASS_CSS = """
     display: block;
 }
 .ma-roadmap-title {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 800;
-    color: #1E1B4B;
-    letter-spacing: -0.3px;
+    color: #f5f6ff;
+    letter-spacing: -0.02em;
     margin-bottom: 6px;
 }
 .ma-roadmap-desc {
-    font-size: 0.85rem;
-    color: #64748B;
+    font-size: 0.82rem;
+    color: #adb6d5;
     line-height: 1.5;
 }
 .ma-roadmap-phase {
     display: inline-block;
-    background: #F5F3FF;
-    color: #6D28D9;
-    font-size: 0.68rem;
+    background: #242748;
+    color: #c4aaff;
+    font-size: 0.62rem;
     font-weight: 800;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.08em;
     padding: 3px 8px;
     border-radius: 6px;
     margin-top: 10px;
+    border: 1px solid #343858;
 }
 </style>
 """
@@ -119,13 +118,10 @@ def _inject_css():
     st.markdown(GLASS_CSS, unsafe_allow_html=True)
 
 
-# ==================== MAIN ====================
 def render(ds, scope) -> None:
     _inject_css()
-
     st.title("🤖 Multi-Agent Factory Collaboration")
 
-    # Banner
     html = (
         f'<div class="ma-banner">'
         f'<div class="ma-badge">⏳ COMING SOON — TAHAP 5</div>'
@@ -135,12 +131,9 @@ def render(ds, scope) -> None:
         f'orkestrasi multi-agen akan dibangun pada Tahap 5. '
         f'Tahap 1 hanya menyediakan lapisan analitik read-only. '
         f'<strong>Tidak ada agen AI yang berkoordinasi atau mengeksekusi tindakan.</strong>'
-        f'</div>'
-        f'</div>'
-    )
+        f'</div></div>')
     st.markdown(html, unsafe_allow_html=True)
 
-    # Roadmap
     st.markdown("### 🗺️ Yang Akan Hadir di Tahap 5")
     st.caption("Rencana pengembangan fitur kolaborasi multi-agen.")
 
@@ -154,7 +147,7 @@ def render(ds, scope) -> None:
         ("📋", "Audit Trail Permanen", "Semua keputusan agen dan manusia tercatat di database SQLite.", "FASE 5C"),
     ]
 
-    c1, c2 = st.columns(2)
+    c1, c2 = st.columns(2, gap="medium")
     for i, (icon, title, desc, phase) in enumerate(roadmap):
         html = (
             f'<div class="ma-roadmap">'
@@ -162,16 +155,13 @@ def render(ds, scope) -> None:
             f'<div class="ma-roadmap-title">{title}</div>'
             f'<div class="ma-roadmap-desc">{desc}</div>'
             f'<div class="ma-roadmap-phase">{phase}</div>'
-            f'</div>'
-        )
+            f'</div>')
         target = c1 if i % 2 == 0 else c2
         with target:
             st.markdown(html, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.info(
-        "💡 **Kenapa belum tersedia?** Sesuai prinsip BRD: *'Jangan klaim fitur "
-        "yang belum ada.'* Decidiq memilih transparan tentang roadmap daripada "
-        "menampilkan fitur palsu. Fase 5 akan dibangun setelah fondasi data "
-        "(Fase 1), intelijen analitik (Fase 2), dan memory (Fase 3) matang."
-    )
+    st.info("💡 **Kenapa belum tersedia?** Sesuai prinsip BRD: *'Jangan klaim fitur "
+            "yang belum ada.'* Decidiq memilih transparan tentang roadmap daripada "
+            "menampilkan fitur palsu. Fase 5 akan dibangun setelah fondasi data "
+            "(Fase 1), intelijen analitik (Fase 2), dan memory (Fase 3) matang.")

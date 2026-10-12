@@ -1,4 +1,6 @@
-"""Halaman Dashboard - Glassmorphism UI + section dividers (bulanan vs harian)."""
+"""Halaman Dashboard — Dark Premium Theme + layout presisi."""
+import math
+
 import streamlit as st
 import plotly.express as px
 
@@ -9,64 +11,64 @@ from ..kpi import KPI, Scope, scope_production, summarize
 from ..pipeline import Dataset
 
 
-# ==================== CSS GLASSMORPHISM ====================
-GLASS_CSS = """
+# ==================== NUMBER FORMATTERS ====================
+def _fmt_thousand(v, decimals: int = 0) -> str:
+    try:
+        if v is None: return "—"
+        f = float(v)
+        if math.isnan(f) or math.isinf(f): return "—"
+        if decimals > 0:
+            return f"{f:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"{f:,.0f}".replace(",", ".")
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
+def _fmt_pct(v, decimals: int = 2) -> str:
+    try:
+        if v is None: return "—"
+        f = float(v)
+        if math.isnan(f) or math.isinf(f): return "—"
+        return f"{f:.{decimals}f}".replace(".", ",") + "%"
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
+def _fmt_rp(v) -> str:
+    try:
+        if v is None: return "—"
+        f = float(v)
+        if math.isnan(f) or math.isinf(f): return "—"
+        return "Rp " + f"{f:,.0f}".replace(",", ".")
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
+# ==================== CSS ====================
+DASH_CSS = """
 <style>
-.glass-metric {
-    position: relative;
-    background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
-    border: 1px solid rgba(196, 181, 253, 0.5);
-    border-radius: 16px;
-    padding: 18px 20px;
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    overflow: hidden;
-    min-height: 105px;
-    margin-bottom: 8px;
+.dash-kpi-row [data-testid="column"] {
+    display: flex !important; flex-direction: column !important;
 }
-.glass-metric::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--accent, #8B5CF6) 0%, #EC4899 100%);
+.dash-kpi-row [data-testid="column"] > div:first-child { flex: 1 !important; }
+.dash-score-wrap { margin: 8px 0 24px 0; }
+.dash-highlights [data-testid="column"] {
+    display: flex !important; flex-direction: column !important;
 }
-.glass-metric:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 16px 32px rgba(139, 92, 246, 0.18);
-    border-color: rgba(139, 92, 246, 0.6);
-}
-.glass-metric-label {
-    color: #6D28D9;
-    font-weight: 700;
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    margin-bottom: 6px;
-}
-.glass-metric-value {
-    color: #0F172A;
-    font-weight: 800;
-    font-size: 1.55rem;
-    letter-spacing: -0.5px;
-    line-height: 1.1;
-    margin-bottom: 2px;
-}
-.glass-metric-note {
-    color: #94A3B8;
-    font-size: 0.68rem;
-    font-style: italic;
-    line-height: 1.3;
-}
+.dash-highlights [data-testid="column"] > div:first-child { flex: 1 !important; }
+.dash-chart-grid [data-testid="stPlotlyChart"] { min-height: 300px; }
+.dash-gap-sm { height: 12px; }
+.dash-gap-md { height: 20px; }
+.dash-gap-lg { height: 28px; }
 </style>
 """
 
 
 def _inject_css():
-    st.markdown(GLASS_CSS, unsafe_allow_html=True)
+    st.markdown(DASH_CSS, unsafe_allow_html=True)
 
 
-# ==================== CACHED HELPERS ====================
+# ==================== CACHED ====================
 @st.cache_data(show_spinner=False)
 def _cached_summarize(ds: Dataset, scope: Scope):
     return summarize(ds, scope)
@@ -76,30 +78,8 @@ def _active_targets():
     return st.session_state.get("_targets") or DEFAULT_TARGETS
 
 
-def _glass_metric_html(label: str, kpi: KPI, fmt: str, accent: str = "#8B5CF6") -> str:
-    if kpi.available:
-        display = fmt.format(kpi.value)
-        note_html = f'<div class="glass-metric-note">{kpi.note}</div>' if kpi.note else ''
-    else:
-        display = "—"
-        note_html = f'<div class="glass-metric-note">Tidak tersedia: {kpi.note}</div>'
-
-    return (
-        f'<div class="glass-metric" style="--accent: {accent};">'
-        f'  <div class="glass-metric-label">{label}</div>'
-        f'  <div class="glass-metric-value">{display}</div>'
-        f'  {note_html}'
-        f'</div>'
-    )
-
-
-def _glass_metric(col, label: str, kpi: KPI, fmt: str, accent: str = "#8B5CF6") -> None:
-    col.markdown(_glass_metric_html(label, kpi, fmt, accent), unsafe_allow_html=True)
-
-
 def _health_score(s, targets):
     components, weights = [], []
-
     if s.yield_pct.available:
         components.append(min(100.0, max(0.0, (s.yield_pct.value / targets.yield_min) * 100)))
         weights.append(0.30)
@@ -112,136 +92,162 @@ def _health_score(s, targets):
     if s.cost_per_kg.available:
         components.append(85.0)
         weights.append(0.20)
-
     if not components:
         return 0.0, "No Data", "#94A3B8"
-
     tw = sum(weights)
     score = sum(c * w for c, w in zip(components, weights)) / tw if tw else 0.0
-
-    if score >= 90:
-        return score, "Excellent", "#10B981"
-    elif score >= 80:
-        return score, "Good", "#8B5CF6"
-    elif score >= 70:
-        return score, "Fair", "#F59E0B"
+    if score >= 90: return score, "Excellent", "#10B981"
+    if score >= 80: return score, "Good", "#8B5CF6"
+    if score >= 70: return score, "Fair", "#F59E0B"
     return score, "Needs Attention", "#EF4444"
 
 
-def _render_alert(alert) -> None:
-    icon = {"high": "🔴", "medium": "🟡", "info": "🔵"}.get(alert.severity, "⚪")
-    text = (
-        f"{icon} **{alert.title}**  \n"
-        f"{alert.message}  \n"
-        f"💰 **Dampak: Rp {alert.monthly_rp:,.0f}/bulan "
-        f"(Rp {alert.annual_rp:,.0f}/tahun)**  \n"
-        f"🔧 {alert.fix_hint}"
+# ==================== HEADER ====================
+def _render_header(ds: Dataset, s) -> None:
+    source = getattr(ds.report, "source_label", "—")
+    loaded = getattr(ds.report, "loaded_at", "—")
+    rows = getattr(s, "production_rows", 0)
+    html = (
+        f'<div style="margin-bottom:22px;">'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;'
+        f'gap:12px;margin-bottom:14px;flex-wrap:wrap;">'
+        f'<span style="color:#adb6d5;font-size:0.75rem;">Workspace / '
+        f'<strong style="color:#f5f6ff;font-weight:700;">Dashboard</strong></span>'
+        f'<span style="display:inline-flex;align-items:center;border:1px solid #765da7;'
+        f'background:#302650;color:#e3cfff;border-radius:30px;padding:6px 11px;'
+        f'font-weight:700;font-size:0.66rem;letter-spacing:0.06em;">'
+        f'DEMO DATA / SIMULATED</span></div>'
+        f'<p style="font-size:0.62rem;color:#a59bde;font-weight:800;'
+        f'letter-spacing:0.12em;text-transform:uppercase;margin:0 0 8px 0;">'
+        f'DECISIONIQ / EXECUTIVE OVERVIEW</p>'
+        f'<h1 style="font-size:2rem;font-weight:800;letter-spacing:-0.045em;'
+        f'color:#f5f6ff;margin:0 0 8px 0;line-height:1.15;">🏭 Dashboard</h1>'
+        f'<p style="color:#adb6d5;font-size:0.85rem;margin:0;line-height:1.5;">'
+        f'Sumber: {source} · Dibaca: {loaded} · '
+        f'<strong style="color:#dce0f4;">{_fmt_thousand(rows)} baris produksi</strong>'
+        f'</p></div>'
     )
-    if alert.severity == "high":
-        st.error(text)
-    elif alert.severity == "medium":
-        st.warning(text)
-    else:
-        st.info(text)
+    st.markdown(html, unsafe_allow_html=True)
 
 
-def _render_period_compare(ds: Dataset) -> None:
-    from .components import render_empty_state
-    periods = available_periods(ds)
-    if len(periods) < 2:
-        render_empty_state(
-            title="Belum Cukup Periode untuk Perbandingan",
-            reason=(
-                f"Saat ini hanya ada **{len(periods)} periode** di data Anda. "
-                f"Untuk analisis Month-over-Month (MoM), sistem butuh minimal "
-                f"**2 periode berbeda** (bulan)."
-            ),
-            icon="📆",
-            hint=(
-                "Pastikan file Excel Anda memiliki kolom **Period** berisi "
-                "lebih dari 1 bulan (contoh: 2026-08, 2026-09)."
-            ),
-        )
-        return
+# ==================== SCORE PANEL ====================
+def _render_score_panel(s, targets) -> None:
+    from .components import score_panel
+    score, status, color = _health_score(s, targets)
+    parts = []
+    if s.output_kg.available:
+        parts.append(f"Output {_fmt_thousand(s.output_kg.value)} Kg")
+    if s.yield_pct.available:
+        parts.append(f"Yield {_fmt_pct(s.yield_pct.value)}")
+    if s.oee.oee.available:
+        parts.append(f"OEE {_fmt_pct(s.oee.oee.value)}")
+    if s.scrap_pct.available:
+        parts.append(f"Scrap {_fmt_pct(s.scrap_pct.value)}")
+    summary = " · ".join(parts) if parts else "Ringkasan performa periode terfilter."
+    delta = f"Status: {status} · Periode terfilter"
+    st.markdown('<div class="dash-score-wrap"></div>', unsafe_allow_html=True)
+    score_panel(score, status, summary, delta_text=delta)
 
-    c1, c2 = st.columns(2)
-    if len(periods) >= 3:
-        prev = c1.selectbox("Periode Sebelumnya", periods, index=len(periods) - 3, key="dc_prev_v2")
-        curr = c2.selectbox("Periode Sekarang", periods, index=len(periods) - 2, key="dc_curr_v2")
-    else:
-        prev = c1.selectbox("Periode Sebelumnya", periods, index=0, key="dc_prev_v2")
-        curr = c2.selectbox("Periode Sekarang", periods, index=len(periods) - 1, key="dc_curr_v2")
 
-    if prev == curr:
-        st.warning("Pilih periode yang berbeda.")
-        return
+# ==================== KPI GRID ====================
+def _render_kpi_grid(s, targets) -> None:
+    from .components import section_header, kpi_card
+    section_header("KPI Utama",
+                   "Delapan indikator utama performa pabrik pada periode terfilter",
+                   "8 METRICS")
+    st.markdown('<div class="dash-kpi-row">', unsafe_allow_html=True)
 
-    comps = compare_periods(ds, prev, curr)
-    rows = []
-    for c in comps:
-        if c.is_improving is True:
-            status = "✅ Membaik"
-        elif c.is_improving is False:
-            status = "🔴 Memburuk"
+    r1 = st.columns(4, gap="medium")
+    with r1[0]:
+        val = f"{_fmt_thousand(s.output_kg.value)} Kg" if s.output_kg.available else "—"
+        kpi_card("Production Volume", val, "Total output periode", accent="#a489ff")
+    with r1[1]:
+        val = _fmt_pct(s.yield_pct.value) if s.yield_pct.available else "—"
+        ok = s.yield_pct.available and s.yield_pct.value >= targets.yield_min
+        kpi_card("Yield", val, f"Target ≥ {targets.yield_min:g}%", accent="#77edb4",
+                 status="BAIK" if ok else "PERHATIAN",
+                 status_color="#77edb4" if ok else "#f7d578")
+    with r1[2]:
+        val = _fmt_pct(s.oee.oee.value) if s.oee.oee.available else "—"
+        ok = s.oee.oee.available and s.oee.oee.value >= targets.oee_min
+        kpi_card("OEE", val, f"Target ≥ {targets.oee_min:g}%", accent="#71d5e9",
+                 status="BAIK" if ok else "PERHATIAN",
+                 status_color="#77edb4" if ok else "#f7d578")
+    with r1[3]:
+        val = _fmt_pct(s.scrap_pct.value) if s.scrap_pct.available else "—"
+        ok = s.scrap_pct.available and s.scrap_pct.value <= targets.scrap_max
+        kpi_card("Scrap Rate", val, f"Target ≤ {targets.scrap_max:g}%", accent="#ff9eaa",
+                 status="BAIK" if ok else "PERHATIAN",
+                 status_color="#77edb4" if ok else "#f7d578")
+
+    st.markdown('<div class="dash-gap-sm"></div>', unsafe_allow_html=True)
+
+    r2 = st.columns(4, gap="medium")
+    with r2[0]:
+        val = _fmt_rp(s.cost_per_kg.value) if s.cost_per_kg.available else "—"
+        kpi_card("Cost / Kg", val, "Biaya produksi per Kg", accent="#bc9cf6")
+    with r2[1]:
+        val = _fmt_rp(s.cogm.value) if s.cogm.available else "—"
+        kpi_card("COGM", val, "Cost of Goods Manufactured", accent="#ec3f92")
+    with r2[2]:
+        val = _fmt_pct(s.oee.availability.value) if s.oee.availability.available else "—"
+        kpi_card("Availability", val, "OEE component", accent="#a489ff")
+    with r2[3]:
+        val = _fmt_pct(s.oee.quality.value) if s.oee.quality.available else "—"
+        kpi_card("Quality", val, "OEE component", accent="#89d84a")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ==================== HIGHLIGHTS ====================
+def _render_highlights(s, targets, alerts) -> None:
+    from .components import section_header, highlight_card
+    section_header("Executive Highlights",
+                   "Sorotan untuk keputusan operasional periode terpilih",
+                   "RINGKASAN")
+    st.markdown('<div class="dash-highlights">', unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4, gap="medium")
+
+    with c1:
+        if s.yield_pct.available and s.yield_pct.value >= targets.yield_min:
+            body = f"Yield {_fmt_pct(s.yield_pct.value)} di atas target · OEE {_fmt_pct(s.oee.oee.value)}"
         else:
-            status = "➖ Stabil"
-        rows.append({
-            "KPI": c.label, prev: c.fmt_value(c.prev_value),
-            curr: c.fmt_value(c.curr_value),
-            "Δ": c.fmt_delta(), "Δ %": c.fmt_pct(), "Status": status,
-        })
+            body = f"Yield {_fmt_pct(s.yield_pct.value)} — perlu ditingkatkan. OEE {_fmt_pct(s.oee.oee.value)}"
+        highlight_card("Pencapaian", body, color="#77edb4", bg="#172d35", line="#276956")
 
-    import pandas as pd
-    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+    with c2:
+        if s.scrap_pct.available:
+            body = f"Scrap {_fmt_pct(s.scrap_pct.value)} · target ≤ {targets.scrap_max:g}%. Periksa setup dan changeover."
+        else:
+            body = "Data scrap belum tersedia untuk periode ini."
+        highlight_card("Perhatian", body, color="#f7d578", bg="#302b30", line="#756036")
 
-    worsening = [c for c in comps if c.is_improving is False]
-    if worsening:
-        labels = ", ".join(c.label for c in worsening)
-        st.warning(f"⚠️ **{len(worsening)} KPI memburuk** dibanding {prev}: {labels}")
+    with c3:
+        if alerts:
+            top = alerts[0]
+            body = f"{top.title} · Dampak {_fmt_rp(top.annual_rp)}/tahun."
+        else:
+            body = "Tidak ada risiko aktif terdeteksi pada periode ini."
+        highlight_card("Risiko", body, color="#ff9eaa", bg="#35243a", line="#794456")
+
+    with c4:
+        if s.score.reasons:
+            body = " · ".join(s.score.reasons[:2])
+        else:
+            body = "Pertahankan performa saat ini dan pantau KPI kunci."
+        highlight_card("Rekomendasi", body, color="#c4aaff", bg="#292449", line="#6551a0")
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ==================== SECTION 1: KPI TOTAL ====================
-def _render_section_total(s, targets, ds):
-    from .components import section_divider
-
-    section_divider(
-        title="KPI Total",
-        subtitle="Ringkasan performa periode terfilter. Angka adalah TOTAL, bukan per bulan atau per hari.",
-        icon="📊",
-        badge="TOTAL",
-        color="#8B5CF6",
-        bg1="#F5F3FF",
-        bg2="#FFFFFF",
-    )
-
-    # KPI Cards (6 kartu)
-    r1 = st.columns(3)
-    _glass_metric(r1[0], "Production Volume", s.output_kg, "{:,.0f} Kg", "#8B5CF6")
-    _glass_metric(r1[1], "Yield", s.yield_pct, "{:.2f}%", "#10B981")
-    _glass_metric(r1[2], "OEE", s.oee.oee, "{:.2f}%", "#3B82F6")
-
-    st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
-
-    r2 = st.columns(3)
-    _glass_metric(r2[0], "Scrap", s.scrap_pct, "{:.2f}%", "#F59E0B")
-    _glass_metric(r2[1], "Cost/Kg", s.cost_per_kg, "Rp {:,.0f}", "#EC4899")
-    _glass_metric(r2[2], "COGM", s.cogm, "Rp {:,.0f}", "#6366F1")
-
-    # OEE Breakdown
-    with st.expander("🔍 Rincian OEE (Availability × Performance × Quality)"):
-        c = st.columns(3)
-        _glass_metric(c[0], "Availability", s.oee.availability, "{:.2f}%", "#8B5CF6")
-        _glass_metric(c[1], "Performance", s.oee.performance, "{:.2f}%", "#A855F7")
-        _glass_metric(c[2], "Quality", s.oee.quality, "{:.2f}%", "#EC4899")
-
-    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
-
-    # KPI vs Target (Gauge)
+# ==================== KPI vs TARGET ====================
+def _render_kpi_vs_target(s, targets) -> None:
+    from .components import section_header
     from .charts import gauge
-    st.markdown("#### 🎯 KPI vs Target")
-    st.caption("Visual pencapaian target. Garis oranye = target.")
-
-    g1, g2, g3 = st.columns(3)
+    section_header("KPI vs Target",
+                   "Visual pencapaian target · garis penanda = target",
+                   "TARGET")
+    g1, g2, g3 = st.columns(3, gap="medium")
     with g1:
         if s.yield_pct.available:
             st.plotly_chart(gauge("Yield", s.yield_pct.value, targets.yield_min,
@@ -258,29 +264,47 @@ def _render_section_total(s, targets, ds):
                                   min_val=60, max_val=100, higher_is_better=True),
                             width='stretch')
 
-    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
-    # Cost Alert
+# ==================== COST ALERTS ====================
+def _render_alerts(s, targets) -> None:
+    from .components import section_header
     alerts = compute_alerts(s, targets)
-    st.markdown("#### 🚨 Cost Alert Aktif")
-    st.caption("Diurutkan berdasarkan Financial Impact.")
-
-    if alerts:
-        total_annual = sum(abs(a.annual_rp) for a in alerts)
-        if total_annual > 0:
-            st.markdown(
-                f"**Total potensi dampak: Rp {total_annual:,.0f}/tahun** "
-                f"— ini yang bisa dihemat jika semua masalah diperbaiki."
-            )
-        for a in alerts:
-            _render_alert(a)
-    else:
+    section_header("Cost Alert Aktif",
+                   "Peringatan otomatis dengan dampak finansial terukur",
+                   f"{len(alerts)} ALERT" if alerts else "AMAN")
+    if not alerts:
         st.success("✅ Tidak ada peringatan aktif. Semua KPI dalam batas target.")
+        return
+    total_annual = sum(abs(a.annual_rp) for a in alerts)
+    if total_annual > 0:
+        st.markdown(
+            f'<div style="background:#302b30;border:1px solid #756036;'
+            f'border-radius:10px;padding:14px 18px;margin-bottom:14px;">'
+            f'<span style="color:#f7d578;font-weight:800;font-size:0.72rem;'
+            f'letter-spacing:0.06em;text-transform:uppercase;">Total Potensi Dampak</span>'
+            f'<div style="color:#ffffff;font-size:1.3rem;font-weight:800;'
+            f'margin-top:6px;letter-spacing:-0.02em;">'
+            f'{_fmt_rp(total_annual)} / tahun</div>'
+            f'<div style="color:#d8dcf2;font-size:0.75rem;margin-top:4px;">'
+            f'Potensi penghematan jika semua masalah diperbaiki.</div></div>',
+            unsafe_allow_html=True)
+    for a in alerts:
+        icon = {"high": "🔴", "medium": "🟡", "info": "🔵"}.get(a.severity, "⚪")
+        text = (
+            f"{icon} **{a.title}**  \n{a.message}  \n"
+            f"💰 **{_fmt_rp(a.monthly_rp)}/bulan · {_fmt_rp(a.annual_rp)}/tahun**  \n"
+            f"🔧 {a.fix_hint}"
+        )
+        if a.severity == "high": st.error(text)
+        elif a.severity == "medium": st.warning(text)
+        else: st.info(text)
 
-    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
-    # Bottom Charts (Cost Control Score + COGM)
-    st.markdown("#### 📊 Analisis Biaya")
+# ==================== ANALYSIS ====================
+def _render_analysis(s) -> None:
+    from .components import section_header, render_empty_state
+    from .charts import pie_chart
+    section_header("Analisis Biaya", "Cost Control Score dan struktur COGM", "COST")
     tab_score, tab_cogm = st.tabs(["🏆 Cost Control Score", "🥧 Struktur COGM"])
 
     with tab_score:
@@ -288,178 +312,149 @@ def _render_section_total(s, targets, ds):
             st.metric("Cost Control Score", "—")
             st.caption(s.score.note)
         else:
-            st.metric("Cost Control Score", f"{s.score.score}/100")
-            (st.success if s.score.score >= 90 else st.info if s.score.score >= 80
-             else st.warning if s.score.score >= 70 else st.error)(s.score.category)
+            c1, c2 = st.columns([1, 2], gap="medium")
+            with c1:
+                st.metric("Cost Control Score", f"{s.score.score}/100")
+            with c2:
+                if s.score.score >= 90: st.success(f"✅ {s.score.category}")
+                elif s.score.score >= 80: st.info(f"ℹ️ {s.score.category}")
+                elif s.score.score >= 70: st.warning(f"⚠️ {s.score.category}")
+                else: st.error(f"🔴 {s.score.category}")
             for r in s.score.reasons:
                 st.caption("• " + r)
-            if s.score.note:
-                st.caption(s.score.note)
+            if s.score.note: st.caption(s.score.note)
 
     with tab_cogm:
-        from .charts import pie_chart
-        from .components import render_empty_state
         if s.breakdown:
             total = sum(s.breakdown.values())
             center = (f"Rp {total/1_000_000_000:.2f} M" if total >= 1e9
                       else f"Rp {total/1_000_000:.1f} jt")
             fig = px.pie(names=list(s.breakdown),
                          values=list(s.breakdown.values()), hole=0.55)
-            fig = pie_chart(fig, height=380, center_text=center)
+            fig = pie_chart(fig, height=320, center_text=center)
             st.plotly_chart(fig, width='stretch')
         else:
             render_empty_state(
                 title="Breakdown COGM Tidak Tersedia",
-                reason=(
-                    f"Sistem belum bisa menghitung komposisi COGM. "
-                    f"Alasan: *{s.cogm.note}*"
-                ),
+                reason=f"Sistem belum bisa menghitung komposisi COGM. Alasan: *{s.cogm.note}*",
                 icon="🥧",
-                hint=(
-                    "Pastikan sheet biaya Anda (Raw_Material, Packaging, "
-                    "Direct_Labor, Utility, Maintenance, Depreciation) "
-                    "berisi kolom **Cost** dan **Period**."
-                ),
-            )
-
-# ==================== SECTION 2: BULANAN ====================
-def _render_section_monthly(ds):
-    from .components import section_divider
-
-    section_divider(
-        title="Analisis Bulanan",
-        subtitle="Perbandingan bulan-ke-bulan (MoM). Cocok untuk laporan & tren jangka menengah.",
-        icon="📆",
-        badge="BULANAN",
-        color="#8B5CF6",
-        bg1="#F5F3FF",
-        bg2="#FFFFFF",
-    )
-
-    st.markdown("#### 📅 Month-over-Month (MoM)")
-    st.caption("Bandingkan KPI antar 2 bulan untuk melihat tren.")
-    _render_period_compare(ds)
+                hint="Pastikan sheet biaya Anda berisi kolom **Cost** dan **Period**.")
 
 
-# ==================== SECTION 3: HARIAN ====================
-def _render_section_daily(ds, scope):
-    from .components import section_divider
+# ==================== MoM ====================
+def _render_monthly(ds: Dataset) -> None:
+    from .components import section_header, render_empty_state
+    section_header("Analisis Bulanan",
+                   "Perbandingan bulan-ke-bulan (MoM) · cocok untuk laporan",
+                   "MoM")
+    periods = available_periods(ds)
+    if len(periods) < 2:
+        render_empty_state(
+            title="Belum Cukup Periode untuk Perbandingan",
+            reason=f"Saat ini hanya ada **{len(periods)} periode**. Butuh minimal **2 periode**.",
+            icon="📆",
+            hint="Pastikan file Excel punya kolom **Period** berisi >1 bulan.")
+        return
+    c1, c2 = st.columns(2, gap="medium")
+    if len(periods) >= 3:
+        prev = c1.selectbox("Periode Sebelumnya", periods, index=len(periods) - 3, key="dc_prev_v3")
+        curr = c2.selectbox("Periode Sekarang", periods, index=len(periods) - 2, key="dc_curr_v3")
+    else:
+        prev = c1.selectbox("Periode Sebelumnya", periods, index=0, key="dc_prev_v3")
+        curr = c2.selectbox("Periode Sekarang", periods, index=len(periods) - 1, key="dc_curr_v3")
+    if prev == curr:
+        st.warning("Pilih periode yang berbeda.")
+        return
+    comps = compare_periods(ds, prev, curr)
+    rows = []
+    for c in comps:
+        if c.is_improving is True: status = "✅ Membaik"
+        elif c.is_improving is False: status = "🔴 Memburuk"
+        else: status = "➖ Stabil"
+        rows.append({
+            "KPI": c.label, prev: c.fmt_value(c.prev_value),
+            curr: c.fmt_value(c.curr_value),
+            "Δ": c.fmt_delta(), "Δ %": c.fmt_pct(), "Status": status,
+        })
+    import pandas as pd
+    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+    worsening = [c for c in comps if c.is_improving is False]
+    if worsening:
+        labels = ", ".join(c.label for c in worsening)
+        st.warning(f"⚠️ **{len(worsening)} KPI memburuk** dibanding {prev}: {labels}")
 
-    section_divider(
-        title="Trend Harian",
-        subtitle="Detail per hari. Cocok untuk investigasi operasional & deteksi anomali.",
-        icon="📅",
-        badge="HARIAN",
-        color="#3B82F6",
-        bg1="#EFF6FF",
-        bg2="#FFFFFF",
-    )
 
+# ==================== DAILY TREND ====================
+def _render_daily(ds: Dataset, scope: Scope) -> None:
+    from .components import section_header, render_empty_state, is_filter_too_narrow
     from .charts import line_chart, COLORS
-    from .components import render_empty_state, is_filter_too_narrow
+    section_header("Trend Harian",
+                   "Detail per hari · investigasi operasional & deteksi anomali",
+                   "HARIAN")
     prod = scope_production(ds.production, scope)
     if not len(prod):
-        # Cek apakah ini karena filter terlalu sempit
         unfiltered = ds.production
         if is_filter_too_narrow(prod, unfiltered):
             render_empty_state(
                 title="Filter Anda Terlalu Sempit",
-                reason=(
-                    "Ada data produksi di file Anda, tapi tidak ada yang "
-                    "cocok dengan filter yang sedang aktif (Plant / Line / Tanggal)."
-                ),
+                reason="Ada data produksi, tapi tidak ada yang cocok dengan filter aktif.",
                 icon="🔍",
-                cta_label="🔄 Reset Filter ke Default",
-                cta_action=lambda: st.session_state.pop("filter", None),
-                hint=(
-                    "Coba longgarkan filter Plant, Line, atau perlebar rentang "
-                    "tanggal di **sidebar kiri**."
-                ),
-            )
+                hint="Coba longgarkan filter Plant, Line, atau perlebar tanggal di sidebar.")
         else:
             render_empty_state(
                 title="Tidak Ada Data Produksi",
-                reason=(
-                    "File Anda tidak memiliki data produksi. Sheet "
-                    "**Production** kemungkinan kosong atau tidak ada."
-                ),
+                reason="Sheet **Production** kosong atau tidak ada.",
                 icon="📊",
-                hint=(
-                    "Pastikan file Excel Anda memiliki sheet **Production** "
-                    "dengan kolom minimal: `Date`, `Machine`, `Output_Kg`."
-                ),
-            )
+                hint="Pastikan file Excel punya sheet **Production** dengan kolom Date, Machine, Output_Kg.")
         return
-
     daily = prod.groupby("Date", as_index=False)["Output_Kg"].sum()
     daily = daily.sort_values("Date").reset_index(drop=True)
-
     n = len(daily)
     step = 1 if n <= 10 else 2 if n <= 20 else 4 if n <= 40 else 7
-
     fig = px.line(daily, x="Date", y="Output_Kg", markers=True)
-
     label_df = daily.iloc[::step].copy()
     for _, row in label_df.iterrows():
         fig.add_annotation(
             x=row["Date"], y=row["Output_Kg"],
-            text=f"<b>{row['Output_Kg']:,.0f}</b>",
+            text=f"<b>{_fmt_thousand(row['Output_Kg'])}</b>",
             showarrow=False, yshift=14,
-            font=dict(size=9, color=COLORS["primary_dark"], family="Inter"),
-            bgcolor="rgba(245, 243, 255, 0.9)",
+            font=dict(size=9, color=COLORS["primary_dark"], family="DM Sans"),
+            bgcolor="rgba(26, 29, 61, 0.9)",
             bordercolor=COLORS["primary_light"],
-            borderwidth=1, borderpad=2,
-        )
-
+            borderwidth=1, borderpad=2)
     avg_val = daily["Output_Kg"].mean()
     fig.add_hline(
         y=avg_val, line_dash="dash",
         line_color=COLORS["accent"], line_width=2,
-        annotation_text=f"<b>AVG {avg_val:,.0f}</b>",
+        annotation_text=f"<b>AVG {_fmt_thousand(avg_val)}</b>",
         annotation_position="right",
-        annotation_font=dict(size=10, color=COLORS["accent_dark"], family="Inter"),
-    )
-
+        annotation_font=dict(size=10, color=COLORS["accent_dark"], family="DM Sans"))
     fig.update_traces(
         line=dict(color=COLORS["primary"]),
-        marker=dict(size=5, color=COLORS["primary"],
-                    line=dict(color="#FFFFFF", width=2)),
-    )
-
-    fig = line_chart(fig, height=360, y_title="Output (Kg)")
+        marker=dict(size=5, color=COLORS["primary"], line=dict(color="#0d1026", width=2)))
+    fig = line_chart(fig, height=340, y_title="Output (Kg)")
     fig.update_layout(margin=dict(t=50, b=60, l=60, r=80))
     st.plotly_chart(fig, width='stretch')
 
 
-# ==================== MAIN RENDER ====================
+# ==================== MAIN ====================
 def render(ds: Dataset, scope: Scope) -> None:
     _inject_css()
     s = _cached_summarize(ds, scope)
     targets = _active_targets()
-
-    # Header + Mini Health Score
-    from .components import page_header, mini_health_score, format_period_label
-    page_header(
-        title="Decidiq",
-        subtitle=(
-            f"Sumber: {ds.report.source_label} · Dibaca: {ds.report.loaded_at} · "
-            f"{s.production_rows:,} baris produksi · "
-            f"Target: Yield ≥ {targets.yield_min:g}% · Scrap ≤ {targets.scrap_max:g}% · "
-            f"OEE ≥ {targets.oee_min:g}%"
-        ),
-        granularity="Multi",
-        period_label=format_period_label(scope),
-        icon="🏭",
-    )
-
-    score, status, color = _health_score(s, targets)
-    mini_health_score(score, status, color)
-
-    # ===== SECTION 1: KPI TOTAL =====
-    _render_section_total(s, targets, ds)
-
-    # ===== SECTION 2: ANALISIS BULANAN =====
-    _render_section_monthly(ds)
-
-    # ===== SECTION 3: TREND HARIAN =====
-    _render_section_daily(ds, scope)
+    alerts = compute_alerts(s, targets)
+    _render_header(ds, s)
+    _render_score_panel(s, targets)
+    _render_kpi_grid(s, targets)
+    st.markdown('<div class="dash-gap-lg"></div>', unsafe_allow_html=True)
+    _render_highlights(s, targets, alerts)
+    st.markdown('<div class="dash-gap-lg"></div>', unsafe_allow_html=True)
+    _render_kpi_vs_target(s, targets)
+    st.markdown('<div class="dash-gap-lg"></div>', unsafe_allow_html=True)
+    _render_alerts(s, targets)
+    st.markdown('<div class="dash-gap-lg"></div>', unsafe_allow_html=True)
+    _render_analysis(s)
+    st.markdown('<div class="dash-gap-lg"></div>', unsafe_allow_html=True)
+    _render_monthly(ds)
+    st.markdown('<div class="dash-gap-lg"></div>', unsafe_allow_html=True)
+    _render_daily(ds, scope)

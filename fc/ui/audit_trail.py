@@ -1,68 +1,67 @@
-"""Halaman Audit Trail - lihat semua log aksi user (BRD 7)."""
+"""Halaman Audit Trail (DARK)."""
 import pandas as pd
 import streamlit as st
 
 from .. import audit
 
 
-# ==================== CSS GLASSMORPHISM ====================
 GLASS_CSS = """
 <style>
 .at-glass {
     position: relative;
-    background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
-    border: 1px solid rgba(196, 181, 253, 0.5);
-    border-radius: 16px;
+    background: linear-gradient(145deg, #1a1d3d, #151933);
+    border: 1px solid #343858;
+    border-radius: 12px;
     padding: 16px 18px;
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 9px 30px rgba(6, 9, 23, 0.13);
+    transition: transform 0.2s ease, border-color 0.2s ease;
     overflow: hidden;
-    min-height: 100px;
+    min-height: 110px;
     margin-bottom: 8px;
 }
 .at-glass::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--accent, #8B5CF6) 0%, #EC4899 100%);
+    top: 0; left: 17px;
+    width: 35px; height: 3px;
+    background: var(--accent, #a489ff);
+    border-radius: 0 0 5px 5px;
 }
 .at-glass:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 16px 32px rgba(139, 92, 246, 0.18);
-    border-color: rgba(139, 92, 246, 0.6);
+    transform: translateY(-2px);
+    border-color: #8c79d7;
+    box-shadow: 0 10px 24px rgba(8, 8, 33, 0.45);
 }
 .at-glass-label {
-    color: #6D28D9;
-    font-weight: 700;
-    font-size: 0.66rem;
+    color: #b8bedb;
+    font-weight: 600;
+    font-size: 0.62rem;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.06em;
     margin-bottom: 6px;
 }
 .at-glass-value {
-    color: #0F172A;
+    color: #ffffff;
     font-weight: 800;
     font-size: 1.5rem;
-    letter-spacing: -0.5px;
-    line-height: 1.1;
+    letter-spacing: -0.04em;
+    line-height: 1.15;
     margin-bottom: 4px;
 }
 .at-glass-note {
-    color: #94A3B8;
+    color: #8793bc;
     font-size: 0.68rem;
-    font-style: italic;
     line-height: 1.3;
+    margin-top: 6px;
 }
 
-/* Banner */
 .at-banner {
-    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
+    background: linear-gradient(110deg, #30265e, #211b47 55%, #171b3c);
     border-radius: 16px;
-    padding: 20px 26px;
-    color: white;
-    box-shadow: 0 12px 32px rgba(30, 27, 75, 0.25);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    padding: 22px 26px;
+    color: #ffffff;
+    box-shadow: 0 9px 30px rgba(6, 9, 23, 0.13);
+    border: 1px solid #5e5090;
     margin-bottom: 20px;
     position: relative;
     overflow: hidden;
@@ -76,28 +75,28 @@ GLASS_CSS = """
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
+    background: linear-gradient(90deg, #a489ff 0%, #71d5e9 100%);
 }
 .at-block { flex: 1; min-width: 160px; }
 .at-block-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     margin-bottom: 6px;
-    color: #A78BFA;
+    color: #c9b9f8;
 }
 .at-block-value {
-    font-size: 1.6rem;
-    font-weight: 900;
-    color: #FFFFFF;
-    letter-spacing: -0.5px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.04em;
     line-height: 1.15;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
 .at-block-sub {
     font-size: 0.75rem;
-    color: #94A3B8;
+    color: #adb6d5;
 }
 </style>
 """
@@ -107,8 +106,15 @@ def _inject_css():
     st.markdown(GLASS_CSS, unsafe_allow_html=True)
 
 
-# ==================== HELPERS ====================
-def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
+def _fmt_thousand(v) -> str:
+    try:
+        if v is None: return "—"
+        return f"{int(v):,}".replace(",", ".")
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
+def _glass_card(col, label: str, value: str, accent: str = "#a489ff",
                 note: str = None) -> None:
     note_html = f'<div class="at-glass-note">{note}</div>' if note else ""
     html = (
@@ -116,30 +122,25 @@ def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
         f'<div class="at-glass-label">{label}</div>'
         f'<div class="at-glass-value">{value}</div>'
         f'{note_html}'
-        f'</div>'
-    )
+        f'</div>')
     col.markdown(html, unsafe_allow_html=True)
 
 
-# ==================== STATS + BANNER ====================
 def _render_stats(stats, logs=None):
     st.markdown("### 📊 Ringkasan Audit")
+    c1, c2, c3 = st.columns(3, gap="medium")
+    _glass_card(c1, "Total Audit Log", _fmt_thousand(stats['total_audit']),
+                "#a489ff", note="Semua aksi tercatat")
+    _glass_card(c2, "Total Keputusan", _fmt_thousand(stats['total_decisions']),
+                "#71d5e9", note="Decision log")
+    _glass_card(c3, "Total Model Runs", _fmt_thousand(stats['total_model_runs']),
+                "#ec3f92", note="Pemanggilan model/AI")
 
-    c1, c2, c3 = st.columns(3)
-    _glass_card(c1, "Total Audit Log", f"{stats['total_audit']:,}", "#8B5CF6",
-                note="Semua aksi tercatat")
-    _glass_card(c2, "Total Keputusan", f"{stats['total_decisions']:,}", "#3B82F6",
-                note="Decision log")
-    _glass_card(c3, "Total Model Runs", f"{stats['total_model_runs']:,}", "#EC4899",
-                note="Pemanggilan model/AI")
-
-    # Banner dengan log terbaru
     if logs:
         last = logs[0]
         last_time = last.get("timestamp", "—")
         last_user = last.get("user", "—")
         last_action = last.get("action", "—")
-
         html = (
             f'<div class="at-banner">'
             f'<div class="at-block">'
@@ -154,53 +155,39 @@ def _render_stats(stats, logs=None):
             f'</div>'
             f'<div class="at-block">'
             f'<div class="at-block-label">📋 TOTAL LOG</div>'
-            f'<div class="at-block-value">{stats["total_audit"]:,}</div>'
+            f'<div class="at-block-value">{_fmt_thousand(stats["total_audit"])}</div>'
             f'<div class="at-block-sub">Database SQLite</div>'
             f'</div>'
-            f'</div>'
-        )
+            f'</div>')
         st.markdown(html, unsafe_allow_html=True)
 
 
-# ==================== MAIN ====================
 def render(ds, scope) -> None:
     _inject_css()
-
     st.title("📋 Audit Trail")
-    st.caption(
-        "Catatan permanen semua aksi user: login, load data, ekspor, chat. "
-        "Tersimpan di database SQLite (BRD 7)."
-    )
+    st.caption("Catatan permanen semua aksi user: login, load data, ekspor, chat. "
+               "Tersimpan di database SQLite (BRD 7).")
 
-    # Statistik
     stats = audit.get_stats()
-
-    # Ambil log terbaru untuk banner
     try:
         _banner_logs = audit.get_recent_logs(limit=1)
     except Exception:
         _banner_logs = []
-
     _render_stats(stats, _banner_logs)
 
     st.markdown("---")
-
-    # Filter
     st.markdown("### 🔍 Filter")
-    col1, col2, col3 = st.columns([2, 2, 1])
+    col1, col2, col3 = st.columns([2, 2, 1], gap="medium")
     with col1:
         limit = st.selectbox("Tampilkan", [50, 100, 250, 500, 1000], index=1)
     with col2:
-        action_filter = st.text_input(
-            "Filter aksi (opsional)",
-            placeholder="mis. login, export, load_data",
-        )
+        action_filter = st.text_input("Filter aksi (opsional)",
+                                       placeholder="mis. login, export, load_data")
     with col3:
         st.write("")
         st.write("")
         show = st.button("🔄 Muat Ulang", width='stretch')
 
-    # Tabel log
     st.markdown("### 📜 Log Terbaru")
     logs = audit.get_recent_logs(limit=limit)
     if action_filter:
@@ -213,10 +200,8 @@ def render(ds, scope) -> None:
     df = pd.DataFrame(logs)
     df = df[["timestamp", "user", "action", "source_label", "details"]]
     df.columns = ["Waktu", "User", "Aksi", "Sumber Data", "Detail"]
-
     st.dataframe(df, width='stretch', hide_index=True)
 
-    # Ringkasan per action
     st.markdown("---")
     st.markdown("### 📊 Ringkasan Aksi")
     if len(df):
@@ -224,9 +209,6 @@ def render(ds, scope) -> None:
         summary.columns = ["Aksi", "Jumlah"]
         st.dataframe(summary, width='stretch', hide_index=True)
 
-    # Info DB
     st.markdown("---")
-    st.caption(
-        "📁 Database: `data/afc.db` (SQLite) — "
-        "bisa diakses langsung dengan tools SQLite untuk audit eksternal."
-    )
+    st.caption("📁 Database: `data/afc.db` (SQLite) — "
+               "bisa diakses langsung dengan tools SQLite untuk audit eksternal.")

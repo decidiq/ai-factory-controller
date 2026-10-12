@@ -1,5 +1,6 @@
-"""Halaman Pengaturan Target KPI — global + per periode (BRD 4)."""
+"""Halaman Pengaturan Target KPI — global + per periode (DARK)."""
 import datetime
+import math
 
 import pandas as pd
 import streamlit as st
@@ -8,16 +9,25 @@ from .. import audit, settings as settings_mgr
 from ..pipeline import Dataset
 
 
-# ==================== CSS ====================
+def _fmt_thousand(v, decimals: int = 0) -> str:
+    try:
+        if v is None: return "—"
+        f = float(v)
+        if math.isnan(f) or math.isinf(f): return "—"
+        return f"{f:,.0f}".replace(",", ".")
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
 GLASS_CSS = """
 <style>
 .set-banner {
-    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 60%, #4C1D95 100%);
+    background: linear-gradient(110deg, #30265e, #211b47 55%, #171b3c);
     border-radius: 16px;
-    padding: 24px 30px;
-    color: white;
-    box-shadow: 0 12px 32px rgba(30, 27, 75, 0.25);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    padding: 26px 32px;
+    color: #ffffff;
+    box-shadow: 0 9px 30px rgba(6, 9, 23, 0.13);
+    border: 1px solid #5e5090;
     margin-bottom: 20px;
     position: relative;
     overflow: hidden;
@@ -33,40 +43,41 @@ GLASS_CSS = """
     top: -80px; right: -80px;
     width: 260px; height: 260px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(139, 92, 246, 0.35) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(164, 137, 255, 0.35) 0%, transparent 70%);
     pointer-events: none;
 }
 .set-banner-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    color: #A78BFA;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: #c9b9f8;
     text-transform: uppercase;
     margin-bottom: 8px;
     position: relative;
     z-index: 1;
 }
 .set-banner-title {
-    font-size: 1.6rem;
-    font-weight: 900;
-    color: #FFFFFF;
-    letter-spacing: -0.6px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.03em;
     line-height: 1.15;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     position: relative;
     z-index: 1;
 }
 .set-banner-desc {
-    font-size: 0.88rem;
-    color: #C4B5FD;
+    font-size: 0.85rem;
+    color: #dce0f4;
     line-height: 1.5;
     max-width: 600px;
     position: relative;
     z-index: 1;
 }
+.set-banner-desc strong { color: #f7d578; }
 .set-user-badge {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(167, 139, 250, 0.4);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid #5e5090;
     border-radius: 12px;
     padding: 12px 18px;
     text-align: right;
@@ -75,38 +86,37 @@ GLASS_CSS = """
     min-width: 200px;
 }
 .set-user-label {
-    font-size: 0.66rem;
-    letter-spacing: 1.2px;
-    color: #A78BFA;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    color: #c9b9f8;
     text-transform: uppercase;
-    font-weight: 700;
+    font-weight: 800;
     margin-bottom: 4px;
 }
 .set-user-name {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 800;
-    color: #FFFFFF;
-    letter-spacing: -0.3px;
+    color: #ffffff;
+    letter-spacing: -0.02em;
 }
 
-/* Section header */
 .set-section {
-    color: #6D28D9;
-    font-size: 0.72rem;
+    color: #b8bedb;
+    font-size: 0.66rem;
     font-weight: 800;
-    letter-spacing: 1.5px;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    padding: 10px 0 6px 0;
-    border-bottom: 2px solid #E9D5FF;
-    margin: 20px 0 14px 0;
+    padding: 12px 0 8px 0;
+    border-bottom: 1px solid #343858;
+    margin: 22px 0 16px 0;
     position: relative;
 }
 .set-section::after {
     content: '';
     position: absolute;
-    bottom: -2px; left: 0;
+    bottom: -1px; left: 0;
     width: 60px; height: 2px;
-    background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
+    background: linear-gradient(90deg, #a489ff 0%, #71d5e9 100%);
 }
 </style>
 """
@@ -116,7 +126,6 @@ def _inject_css():
     st.markdown(GLASS_CSS, unsafe_allow_html=True)
 
 
-# ==================== BANNER ====================
 def _render_banner(username: str):
     html = (
         f'<div class="set-banner">'
@@ -127,89 +136,68 @@ def _render_banner(username: str):
         f'Ubah target operasional, biaya, dan inventory. '
         f'Semua perubahan tercatat otomatis di <strong>audit trail</strong> untuk '
         f'transparansi dan governance.'
-        f'</div>'
-        f'</div>'
+        f'</div></div>'
         f'<div class="set-user-badge">'
         f'<div class="set-user-label">LOGIN SEBAGAI</div>'
         f'<div class="set-user-name">👤 {username}</div>'
-        f'</div>'
-        f'</div>'
-    )
+        f'</div></div>')
     st.markdown(html, unsafe_allow_html=True)
 
 
-# ==================== GLOBAL TARGETS ====================
 def _render_global_targets(username: str) -> None:
-    st.markdown(
-        '<div class="set-section">🌍 TARGET GLOBAL (DEFAULT)</div>',
-        unsafe_allow_html=True,
-    )
-    st.caption(
-        "Target ini berlaku untuk semua periode, kecuali di-override oleh Target per Periode."
-    )
+    st.markdown('<div class="set-section">🌍 TARGET GLOBAL (DEFAULT)</div>',
+                unsafe_allow_html=True)
+    st.caption("Target ini berlaku untuk semua periode, kecuali di-override "
+               "oleh Target per Periode.")
 
     current = settings_mgr.get_current_dict()
-
     OPERATIONAL_KEYS = ["target_yield", "target_scrap", "target_oee"]
     COST_KEYS = ["max_cost_per_kg", "utility_share_max", "variance_tolerance_pct"]
     INVENTORY_KEYS = ["slow_moving_days"]
-
     new_values = {}
 
-    # Operasional
     st.markdown("##### 🎯 Target Operasional")
-    cols = st.columns(3)
+    cols = st.columns(3, gap="medium")
     for i, key in enumerate(OPERATIONAL_KEYS):
         meta = settings_mgr.SETTING_META[key]
         with cols[i]:
-            val = st.number_input(
-                meta["label"],
-                min_value=float(meta["min"]),
-                max_value=float(meta["max"]),
-                value=float(current.get(key, meta["default"])),
-                step=0.1,
-                help=meta["help"],
-                key=f"glob_{key}",
-            )
+            val = st.number_input(meta["label"],
+                                   min_value=float(meta["min"]),
+                                   max_value=float(meta["max"]),
+                                   value=float(current.get(key, meta["default"])),
+                                   step=0.1, help=meta["help"],
+                                   key=f"glob_{key}")
             new_values[key] = val
 
-    # Biaya
     st.markdown("##### 💰 Target Biaya")
-    cols = st.columns(3)
+    cols = st.columns(3, gap="medium")
     for i, key in enumerate(COST_KEYS):
         meta = settings_mgr.SETTING_META[key]
         with cols[i]:
             step = 100_000 if "cost" in key else 0.1
-            val = st.number_input(
-                meta["label"],
-                min_value=float(meta["min"]),
-                max_value=float(meta["max"]),
-                value=float(current.get(key, meta["default"])),
-                step=float(step),
-                help=meta["help"],
-                key=f"glob_{key}",
-            )
+            val = st.number_input(meta["label"],
+                                   min_value=float(meta["min"]),
+                                   max_value=float(meta["max"]),
+                                   value=float(current.get(key, meta["default"])),
+                                   step=float(step), help=meta["help"],
+                                   key=f"glob_{key}")
             new_values[key] = val
 
-    # Inventory
     st.markdown("##### 📦 Target Inventory")
-    cols = st.columns(3)
+    cols = st.columns(3, gap="medium")
     for i, key in enumerate(INVENTORY_KEYS):
         meta = settings_mgr.SETTING_META[key]
         with cols[i]:
-            val = st.number_input(
-                meta["label"],
-                min_value=int(meta["min"]),
-                max_value=int(meta["max"]),
-                value=int(current.get(key, meta["default"])),
-                step=1,
-                help=meta["help"],
-                key=f"glob_{key}",
-            )
+            val = st.number_input(meta["label"],
+                                   min_value=int(meta["min"]),
+                                   max_value=int(meta["max"]),
+                                   value=int(current.get(key, meta["default"])),
+                                   step=1, help=meta["help"],
+                                   key=f"glob_{key}")
             new_values[key] = val
 
     st.markdown("")
-    col_save, col_reset, col_info = st.columns([1, 1, 2])
+    col_save, col_reset, col_info = st.columns([1, 1, 2], gap="medium")
 
     with col_save:
         if st.button("💾 Simpan Global", type="primary",
@@ -225,8 +213,7 @@ def _render_global_targets(username: str) -> None:
                 st.info("ℹ️ Tidak ada perubahan.")
 
     with col_reset:
-        if st.button("🔄 Reset ke Default", width='stretch',
-                     key="reset_global"):
+        if st.button("🔄 Reset ke Default", width='stretch', key="reset_global"):
             settings_mgr.reset_targets(user=username)
             st.success("✅ Semua target global dikembalikan ke default.")
             st.rerun()
@@ -235,16 +222,12 @@ def _render_global_targets(username: str) -> None:
         st.caption("Global target berlaku sebagai default.")
 
 
-# ==================== PERIOD TARGETS ====================
 def _render_period_targets(username: str) -> None:
-    st.markdown(
-        '<div class="set-section">📅 TARGET PER PERIODE</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="set-section">📅 TARGET PER PERIODE</div>',
+                unsafe_allow_html=True)
     st.caption("Definisikan target spesifik untuk range bulan tertentu.")
 
     periods = settings_mgr.list_target_periods()
-
     if periods:
         st.markdown("**Target Periode Aktif:**")
         for p in periods:
@@ -255,11 +238,9 @@ def _render_period_targets(username: str) -> None:
     st.markdown("---")
     st.markdown("##### ➕ Tambah Target Periode Baru")
 
-    col1, col2 = st.columns(2)
-
+    col1, col2 = st.columns(2, gap="medium")
     bulan_options = [f"2026-{m:02d}" for m in range(1, 13)] + \
                      [f"2027-{m:02d}" for m in range(1, 13)]
-
     with col1:
         period_start = st.selectbox("Dari Bulan", bulan_options, index=0,
                                      key="new_period_start")
@@ -272,8 +253,7 @@ def _render_period_targets(username: str) -> None:
         return
 
     st.markdown("**Target untuk Periode Ini:**")
-
-    col_a, col_b, col_c = st.columns(3)
+    col_a, col_b, col_c = st.columns(3, gap="medium")
     with col_a:
         val_yield = st.number_input("Target Yield (%)", 0.0, 100.0, 98.0, 0.1,
                                      key="new_period_yield")
@@ -284,7 +264,7 @@ def _render_period_targets(username: str) -> None:
         val_oee = st.number_input("Target OEE (%)", 0.0, 100.0, 85.0, 0.1,
                                    key="new_period_oee")
 
-    col_d, col_e = st.columns(2)
+    col_d, col_e = st.columns(2, gap="medium")
     with col_d:
         val_cost = st.number_input("Max Cost/Kg (Rp)", 0.0, 1e9, 12500.0, 500.0,
                                     key="new_period_cost")
@@ -294,20 +274,12 @@ def _render_period_targets(username: str) -> None:
                                 key="new_period_reason")
 
     if st.button("💾 Simpan Target Periode", type="primary", key="save_period"):
-        values = {
-            "target_yield": val_yield,
-            "target_scrap": val_scrap,
-            "target_oee": val_oee,
-            "max_cost_per_kg": val_cost,
-        }
+        values = {"target_yield": val_yield, "target_scrap": val_scrap,
+                  "target_oee": val_oee, "max_cost_per_kg": val_cost}
         try:
             settings_mgr.save_target_period(
-                period_start=period_start,
-                period_end=period_end,
-                values=values,
-                user=username,
-                reason=reason,
-            )
+                period_start=period_start, period_end=period_end,
+                values=values, user=username, reason=reason)
             st.success(f"✅ Target periode {period_start} - {period_end} disimpan.")
             st.rerun()
         except Exception as e:
@@ -316,7 +288,7 @@ def _render_period_targets(username: str) -> None:
 
 def _render_period_card(p: dict, username: str) -> None:
     with st.container(border=True):
-        col1, col2 = st.columns([3, 1])
+        col1, col2 = st.columns([3, 1], gap="medium")
         with col1:
             st.markdown(f"**📅 {p['period_start']} s/d {p['period_end']}**")
             if p.get("reason"):
@@ -333,26 +305,23 @@ def _render_period_card(p: dict, username: str) -> None:
 
         params = p.get("parameters", {})
         if params:
-            cols = st.columns(min(len(params), 4))
+            cols = st.columns(min(len(params), 4), gap="medium")
             for i, (k, v) in enumerate(params.items()):
                 meta = settings_mgr.SETTING_META.get(k, {})
                 label = meta.get("label", k)
                 unit = meta.get("unit", "")
                 with cols[i % len(cols)]:
                     if unit == "Rp":
-                        st.metric(label, f"Rp {v:,.0f}")
+                        st.metric(label, f"Rp {_fmt_thousand(v)}")
                     elif unit == "%":
                         st.metric(label, f"{v:.1f}%")
                     else:
                         st.metric(label, f"{v}")
 
 
-# ==================== HISTORY ====================
 def _render_history() -> None:
-    st.markdown(
-        '<div class="set-section">📜 RIWAYAT PERUBAHAN TARGET</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="set-section">📜 RIWAYAT PERUBAHAN TARGET</div>',
+                unsafe_allow_html=True)
     history = settings_mgr.get_settings_history(limit=20)
     if not history:
         st.info("Belum ada perubahan target.")
@@ -366,33 +335,19 @@ def _render_history() -> None:
             changes_str = " · ".join(changes_list) if changes_list else "—"
         except Exception:
             changes_str = "—"
-        rows.append({
-            "Waktu": h.get("timestamp", ""),
-            "User": h.get("user", ""),
-            "Aksi": h.get("action", ""),
-            "Perubahan": changes_str,
-        })
+        rows.append({"Waktu": h.get("timestamp", ""), "User": h.get("user", ""),
+                     "Aksi": h.get("action", ""), "Perubahan": changes_str})
     st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
 
-# ==================== MAIN ====================
 def render(ds: Dataset, scope) -> None:
     _inject_css()
-
     st.title("⚙️ Pengaturan Target KPI")
-
     username = st.session_state.get("username", "system")
     _render_banner(username)
 
     tab1, tab2, tab3 = st.tabs([
-        "🌍 Target Global",
-        "📅 Target per Periode",
-        "📜 Riwayat",
-    ])
-
-    with tab1:
-        _render_global_targets(username)
-    with tab2:
-        _render_period_targets(username)
-    with tab3:
-        _render_history()
+        "🌍 Target Global", "📅 Target per Periode", "📜 Riwayat"])
+    with tab1: _render_global_targets(username)
+    with tab2: _render_period_targets(username)
+    with tab3: _render_history()

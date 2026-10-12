@@ -1,42 +1,43 @@
-"""Plotly chart theme helper untuk Decidiq — Premium style."""
+"""Plotly chart theme helper untuk Decidiq — Dark Premium theme."""
 from typing import List, Optional
 
 import plotly.graph_objects as go
 import plotly.io as pio
 
 
-# ==================== COLOR PALETTE ====================
+# ==================== COLOR PALETTE — DARK ====================
 COLORS = {
-    "primary": "#8B5CF6",
-    "primary_dark": "#6D28D9",
-    "primary_light": "#C4B5FD",
-    "accent": "#EC4899",
-    "accent_dark": "#BE185D",
-    "success": "#10B981",
-    "warning": "#F59E0B",
-    "danger": "#EF4444",
-    "info": "#3B82F6",
-    "text": "#0F172A",
-    "text_muted": "#64748B",
-    "text_axis": "#475569",
-    "grid": "#F1F5F9",
-    "bg": "#FFFFFF",
-    "card_bg": "#FFFFFF",
-    "card_border": "#E9D5FF",
+    "primary": "#a489ff",
+    "primary_dark": "#8163ec",
+    "primary_light": "#c4aaff",
+    "accent": "#71d5e9",
+    "accent_dark": "#4ec4dc",
+    "success": "#77edb4",
+    "warning": "#f7d578",
+    "danger": "#ff9eaa",
+    "info": "#71d5e9",
+    "text": "#f5f6ff",
+    "text_muted": "#adb6d5",
+    "text_axis": "#aeb7d6",
+    "grid": "#303451",
+    "bg": "rgba(0,0,0,0)",
+    "card_bg": "#1a1d3d",
+    "card_border": "#343858",
+    "line": "#343858",
 }
 
 CATEGORY_COLORS = [
-    "#8B5CF6", "#EC4899", "#F59E0B", "#10B981",
-    "#3B82F6", "#EF4444", "#A855F7", "#14B8A6",
+    "#a489ff", "#71d5e9", "#77edb4", "#f7d578",
+    "#ff9eaa", "#ec3f92", "#c4aaff", "#89d84a",
 ]
 
 
 # ==================== THEME ====================
 def apply_theme(fig: go.Figure, height: Optional[int] = None) -> go.Figure:
-    """Apply Decidiq theme ke Plotly figure."""
+    """Apply Decidiq dark theme ke Plotly figure."""
     fig.update_layout(
         font=dict(
-            family="Inter, -apple-system, BlinkMacSystemFont, sans-serif",
+            family="DM Sans, -apple-system, BlinkMacSystemFont, sans-serif",
             size=12,
             color=COLORS["text"],
         ),
@@ -44,10 +45,10 @@ def apply_theme(fig: go.Figure, height: Optional[int] = None) -> go.Figure:
         paper_bgcolor=COLORS["bg"],
         margin=dict(t=30, b=60, l=60, r=30),
         hoverlabel=dict(
-            bgcolor="#1E1B4B",
+            bgcolor="#302650",
             font_size=12,
-            font_family="Inter, sans-serif",
-            font_color="#FFFFFF",
+            font_family="DM Sans, sans-serif",
+            font_color="#ffffff",
             bordercolor=COLORS["primary"],
         ),
         legend=dict(
@@ -56,8 +57,8 @@ def apply_theme(fig: go.Figure, height: Optional[int] = None) -> go.Figure:
             y=-0.25,
             xanchor="center",
             x=0.5,
-            font=dict(size=11, color=COLORS["text_axis"], family="Inter"),
-            bgcolor="rgba(255,255,255,0.9)",
+            font=dict(size=11, color=COLORS["text_axis"], family="DM Sans"),
+            bgcolor="rgba(26, 29, 61, 0.6)",
             bordercolor=COLORS["card_border"],
             borderwidth=1,
             itemsizing="constant",
@@ -65,22 +66,23 @@ def apply_theme(fig: go.Figure, height: Optional[int] = None) -> go.Figure:
         xaxis=dict(
             showgrid=False,
             showline=False,
-            tickfont=dict(color=COLORS["text_axis"], size=11, family="Inter"),
+            tickfont=dict(color=COLORS["text_axis"], size=11, family="DM Sans"),
             title=dict(
                 font=dict(color=COLORS["text"], size=12,
-                          family="Inter"),
+                          family="DM Sans"),
             ),
             zeroline=False,
+            linecolor=COLORS["line"],
         ),
         yaxis=dict(
             showgrid=True,
             gridcolor=COLORS["grid"],
             gridwidth=1,
             showline=False,
-            tickfont=dict(color=COLORS["text_axis"], size=11, family="Inter"),
+            tickfont=dict(color=COLORS["text_axis"], size=11, family="DM Sans"),
             title=dict(
                 font=dict(color=COLORS["text"], size=12,
-                          family="Inter"),
+                          family="DM Sans"),
             ),
             zeroline=False,
         ),
@@ -117,7 +119,7 @@ def bar_chart(fig: go.Figure, height: int = 340, show_values: bool = True,
                 trace.text = trace.y
                 trace.textposition = "outside"
                 trace.textfont = dict(
-                    size=11, color=COLORS["text"], family="Inter",
+                    size=11, color=COLORS["text"], family="DM Sans",
                 )
                 trace.cliponaxis = False
 
@@ -133,11 +135,11 @@ def bar_chart(fig: go.Figure, height: int = 340, show_values: bool = True,
 # ==================== PIE ====================
 def pie_chart(fig: go.Figure, height: int = 340,
               center_text: str = "") -> go.Figure:
-    """Theme pie/donut chart."""
+    """Theme pie/donut chart — dark friendly."""
     fig.update_traces(
-        textfont=dict(size=11, color="#FFFFFF", family="Inter"),
+        textfont=dict(size=11, color="#ffffff", family="DM Sans"),
         marker=dict(
-            line=dict(color="#FFFFFF", width=3),
+            line=dict(color="#0d1026", width=3),
             colors=CATEGORY_COLORS,
         ),
         hole=0.55,
@@ -147,7 +149,7 @@ def pie_chart(fig: go.Figure, height: int = 340,
         fig.add_annotation(
             text=f"<b>{center_text}</b>",
             x=0.5, y=0.5, showarrow=False,
-            font=dict(size=16, color=COLORS["text"], family="Inter"),
+            font=dict(size=16, color=COLORS["text"], family="DM Sans"),
         )
 
     fig = apply_theme(fig, height=height)
@@ -156,8 +158,8 @@ def pie_chart(fig: go.Figure, height: int = 340,
             orientation="v",
             yanchor="middle", y=0.5,
             xanchor="left", x=1.02,
-            font=dict(size=11, color=COLORS["text_axis"], family="Inter"),
-            bgcolor="rgba(255,255,255,0.9)",
+            font=dict(size=11, color=COLORS["text_axis"], family="DM Sans"),
+            bgcolor="rgba(26, 29, 61, 0.6)",
             bordercolor=COLORS["card_border"],
             borderwidth=1,
         ),
@@ -170,7 +172,7 @@ def gauge(fig_title: str, value: float, target: float,
           min_val: float = 0, max_val: float = 100,
           unit: str = "%", higher_is_better: bool = True,
           height: int = 220) -> go.Figure:
-    """Buat gauge chart untuk KPI vs target."""
+    """Buat gauge chart untuk KPI vs target — dark theme."""
     met = (value >= target) if higher_is_better else (value <= target)
     bar_color = COLORS["success"] if met else COLORS["danger"]
 
@@ -179,16 +181,16 @@ def gauge(fig_title: str, value: float, target: float,
         value=value,
         domain={"x": [0, 1], "y": [0, 1]},
         title={"text": f"<b>{fig_title}</b>",
-               "font": {"size": 13, "color": COLORS["text_axis"], "family": "Inter"}},
+               "font": {"size": 13, "color": COLORS["text_axis"], "family": "DM Sans"}},
         number={
             "suffix": unit,
-            "font": {"size": 28, "color": COLORS["text"], "family": "Inter"},
+            "font": {"size": 28, "color": COLORS["text"], "family": "DM Sans"},
         },
         delta={
             "reference": target,
             "increasing": {"color": COLORS["success"]},
             "decreasing": {"color": COLORS["danger"]},
-            "font": {"size": 12, "family": "Inter"},
+            "font": {"size": 12, "family": "DM Sans"},
         },
         gauge={
             "axis": {
@@ -198,11 +200,11 @@ def gauge(fig_title: str, value: float, target: float,
                 "tickfont": {"size": 10, "color": COLORS["text_muted"]},
             },
             "bar": {"color": bar_color, "thickness": 0.75},
-            "bgcolor": "#F8FAFC",
+            "bgcolor": "#242748",
             "borderwidth": 0,
             "steps": [
-                {"range": [min_val, target], "color": "#F1F5F9"},
-                {"range": [target, max_val], "color": "#EDE9FE"},
+                {"range": [min_val, target], "color": "#302650"},
+                {"range": [target, max_val], "color": "#3c3f6a"},
             ],
             "threshold": {
                 "line": {"color": COLORS["accent"], "width": 3},
@@ -216,7 +218,7 @@ def gauge(fig_title: str, value: float, target: float,
         height=height,
         margin=dict(t=50, b=10, l=20, r=20),
         paper_bgcolor=COLORS["bg"],
-        font=dict(family="Inter, sans-serif"),
+        font=dict(family="DM Sans, sans-serif"),
     )
     return fig
 
@@ -234,7 +236,7 @@ def target_vs_actual(kpis: List[tuple], height: int = 340) -> go.Figure:
         marker_color=COLORS["primary"],
         text=[f"<b>{a:,.2f}</b>" for a in actuals],
         textposition="outside",
-        textfont=dict(size=11, color=COLORS["text"], family="Inter"),
+        textfont=dict(size=11, color=COLORS["text"], family="DM Sans"),
         cliponaxis=False,
     ))
     fig.add_trace(go.Bar(
@@ -242,7 +244,7 @@ def target_vs_actual(kpis: List[tuple], height: int = 340) -> go.Figure:
         marker_color=COLORS["primary_light"],
         text=[f"{t:,.2f}" for t in targets],
         textposition="outside",
-        textfont=dict(size=10, color=COLORS["text_muted"], family="Inter"),
+        textfont=dict(size=10, color=COLORS["text_muted"], family="DM Sans"),
         cliponaxis=False,
     ))
 
@@ -255,33 +257,22 @@ def target_vs_actual(kpis: List[tuple], height: int = 340) -> go.Figure:
 def comparison_bar(labels: List[str], baseline: List[float],
                    simulasi: List[float], height: int = 360,
                    title: str = "", y_title: str = "") -> go.Figure:
-    """Bar chart membandingkan baseline vs simulasi.
-
-    Args:
-        labels: Label kategori (x-axis)
-        baseline: Nilai baseline
-        simulasi: Nilai setelah simulasi
-        height: Tinggi chart
-        title: Judul chart
-        y_title: Y-axis title
-    """
+    """Bar chart membandingkan baseline vs simulasi."""
     fig = go.Figure()
 
-    # Baseline (abu)
     fig.add_trace(go.Bar(
         name="Baseline",
         x=labels,
         y=baseline,
-        marker_color="#94A3B8",
+        marker_color="#6b6f95",
         marker_line_width=0,
         text=[f"<b>{b:,.0f}</b>" for b in baseline],
         textposition="outside",
-        textfont=dict(size=11, color=COLORS["text_muted"], family="Inter"),
+        textfont=dict(size=11, color=COLORS["text_muted"], family="DM Sans"),
         cliponaxis=False,
         hovertemplate="<b>%{x}</b><br>Baseline: %{y:,.0f}<extra></extra>",
     ))
 
-    # Simulasi (purple)
     fig.add_trace(go.Bar(
         name="Simulasi",
         x=labels,
@@ -290,7 +281,7 @@ def comparison_bar(labels: List[str], baseline: List[float],
         marker_line_width=0,
         text=[f"<b>{s:,.0f}</b>" for s in simulasi],
         textposition="outside",
-        textfont=dict(size=11, color=COLORS["primary_dark"], family="Inter"),
+        textfont=dict(size=11, color=COLORS["primary_light"], family="DM Sans"),
         cliponaxis=False,
         hovertemplate="<b>%{x}</b><br>Simulasi: %{y:,.0f}<extra></extra>",
     ))
@@ -354,7 +345,7 @@ def radar(categories: List[str], values: List[float],
         r=values, theta=categories,
         fill="toself", name="Actual",
         line=dict(color=COLORS["primary"], width=3),
-        fillcolor="rgba(139, 92, 246, 0.25)",
+        fillcolor="rgba(164, 137, 255, 0.25)",
     ))
     fig.add_trace(go.Scatterpolar(
         r=targets, theta=categories,
@@ -364,7 +355,7 @@ def radar(categories: List[str], values: List[float],
 
     fig.update_layout(
         polar=dict(
-            bgcolor="#F8FAFC",
+            bgcolor="#1a1d3d",
             radialaxis=dict(
                 visible=True,
                 range=[0, max(max(values), max(targets)) * 1.1],
@@ -373,7 +364,7 @@ def radar(categories: List[str], values: List[float],
             ),
             angularaxis=dict(
                 gridcolor=COLORS["grid"],
-                tickfont=dict(size=11, color=COLORS["text"], family="Inter"),
+                tickfont=dict(size=11, color=COLORS["text"], family="DM Sans"),
             ),
         ),
         showlegend=True,
@@ -382,21 +373,22 @@ def radar(categories: List[str], values: List[float],
         margin=dict(t=40, b=40, l=60, r=60),
         title=dict(text=f"<b>{title}</b>" if title else None,
                    font=dict(size=13, color=COLORS["text"])),
-        legend=dict(orientation="h", y=-0.1, x=0.5, xanchor="center"),
-        font=dict(family="Inter, sans-serif"),
+        legend=dict(orientation="h", y=-0.1, x=0.5, xanchor="center",
+                    font=dict(color=COLORS["text_axis"])),
+        font=dict(family="DM Sans, sans-serif"),
     )
     return fig
 
 
 # ==================== CARD WRAPPER ====================
 def card_open(title: str, subtitle: str = "") -> None:
-    """Buka card wrapper untuk chart."""
+    """Buka card wrapper untuk chart — dark theme."""
     import streamlit as st
     st.markdown(f"""
     <div style="background:{COLORS['card_bg']};border:1px solid {COLORS['card_border']};
         border-radius:14px;padding:20px 22px 8px 22px;margin-bottom:16px;
-        box-shadow:0 2px 8px rgba(139,92,246,0.06);">
-        <div style="font-size:1.05rem;font-weight:700;color:#1E1B4B;
+        box-shadow:0 9px 30px rgba(6,9,23,0.13);">
+        <div style="font-size:1.05rem;font-weight:700;color:#f5f6ff;
             letter-spacing:-0.3px;margin-bottom:4px;">{title}</div>
         <div style="font-size:0.78rem;color:{COLORS['text_muted']};
             margin-bottom:12px;">{subtitle}</div>

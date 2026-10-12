@@ -1,5 +1,6 @@
-"""Executive Report - Executive Briefing Deck + export PDF/Excel/PPT."""
+"""Executive Report - Executive Briefing Deck + export PDF/Excel/PPT (DARK)."""
 import datetime
+import math
 
 import streamlit as st
 
@@ -16,65 +17,116 @@ from .components import (page_header, mini_health_score,
                          format_period_label, compute_health_score,
                          section_divider)
 
-# ==================== CSS ====================
+
+# ==================== NUMBER FORMATTING (Indonesian) ====================
+def _fmt_thousand(v, decimals: int = 0) -> str:
+    """2.889.047.350 atau 1.234,57"""
+    try:
+        if v is None:
+            return "—"
+        f = float(v)
+        if math.isnan(f) or math.isinf(f):
+            return "—"
+        if decimals > 0:
+            return f"{f:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"{f:,.0f}".replace(",", ".")
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
+def _fmt_pct(v, decimals: int = 2) -> str:
+    """-3.7872 → '-3,79%'"""
+    try:
+        if v is None:
+            return "—"
+        f = float(v)
+        if math.isnan(f) or math.isinf(f):
+            return "—"
+        return f"{f:.{decimals}f}".replace(".", ",") + "%"
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
+def _fmt_rp(v, compact: bool = False) -> str:
+    """Rp 2.889.047.350 atau Rp 2,89 M (compact)"""
+    try:
+        if v is None:
+            return "—"
+        f = float(v)
+        if math.isnan(f) or math.isinf(f):
+            return "—"
+        if compact:
+            if abs(f) >= 1_000_000_000:
+                return "Rp " + f"{f/1_000_000_000:.2f}".replace(".", ",") + " M"
+            if abs(f) >= 1_000_000:
+                return "Rp " + f"{f/1_000_000:.1f}".replace(".", ",") + " jt"
+            if abs(f) >= 1_000:
+                return "Rp " + f"{f/1_000:.1f}".replace(".", ",") + " rb"
+        return "Rp " + f"{f:,.0f}".replace(",", ".")
+    except (ValueError, TypeError):
+        return str(v) if v is not None else "—"
+
+
+# ==================== CSS (DARK) ====================
 EXEC_CSS = """
 <style>
 /* Glass Card */
 .exec-glass {
     position: relative;
-    background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
-    border: 1px solid rgba(196, 181, 253, 0.5);
-    border-radius: 16px;
+    background: linear-gradient(145deg, #1a1d3d, #151933);
+    border: 1px solid #343858;
+    border-radius: 12px;
     padding: 16px 18px;
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 9px 30px rgba(6, 9, 23, 0.13);
+    transition: transform 0.2s ease, border-color 0.2s ease;
     overflow: hidden;
-    min-height: 100px;
-    margin-bottom: 10px;
+    min-height: 110px;
+    margin-bottom: 8px;
 }
 .exec-glass::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--accent, #8B5CF6) 0%, #EC4899 100%);
+    top: 0; left: 17px;
+    width: 35px; height: 3px;
+    background: var(--accent, #a489ff);
+    border-radius: 0 0 5px 5px;
 }
 .exec-glass:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 16px 32px rgba(139, 92, 246, 0.18);
-    border-color: rgba(139, 92, 246, 0.6);
+    transform: translateY(-2px);
+    border-color: #8c79d7;
+    box-shadow: 0 10px 24px rgba(8, 8, 33, 0.45);
 }
 .exec-glass-label {
-    color: #6D28D9;
-    font-weight: 700;
-    font-size: 0.66rem;
+    color: #b8bedb;
+    font-weight: 600;
+    font-size: 0.62rem;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.06em;
     margin-bottom: 6px;
 }
 .exec-glass-value {
-    color: #0F172A;
+    color: #ffffff;
     font-weight: 800;
     font-size: 1.35rem;
-    letter-spacing: -0.5px;
-    line-height: 1.1;
-    margin-bottom: 2px;
+    letter-spacing: -0.04em;
+    line-height: 1.15;
+    margin-bottom: 4px;
 }
 .exec-glass-note {
-    color: #94A3B8;
+    color: #8793bc;
     font-size: 0.68rem;
-    font-style: italic;
     line-height: 1.3;
+    margin-top: 6px;
 }
 
 /* Health Banner */
 .exec-health-banner {
-    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
-    border-radius: 18px;
-    padding: 20px 26px;
-    color: white;
-    box-shadow: 0 12px 32px rgba(30, 27, 75, 0.25);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: linear-gradient(110deg, #30265e, #211b47 55%, #171b3c);
+    border-radius: 16px;
+    padding: 22px 26px;
+    color: #ffffff;
+    box-shadow: 0 9px 30px rgba(6, 9, 23, 0.13);
+    border: 1px solid #5e5090;
     display: flex;
     align-items: center;
     gap: 26px;
@@ -83,42 +135,43 @@ EXEC_CSS = """
 }
 .exec-health-left { min-width: 160px; }
 .exec-health-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    color: #A78BFA;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: #c9b9f8;
     text-transform: uppercase;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 .exec-health-score {
-    font-size: 2.4rem;
-    font-weight: 900;
+    font-size: 2.2rem;
+    font-weight: 800;
     line-height: 1;
-    letter-spacing: -2px;
+    letter-spacing: -0.04em;
+    color: #ffffff;
 }
-.exec-health-score-max { font-size: 1rem; color: #94A3B8; font-weight: 600; }
+.exec-health-score-max { font-size: 1rem; color: #c8c2ee; font-weight: 600; }
 .exec-health-status {
-    font-size: 0.82rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 1px;
-    margin-top: 4px;
+    letter-spacing: 0.06em;
+    margin-top: 6px;
     text-transform: uppercase;
 }
 .exec-health-right { flex: 1; min-width: 200px; }
 .exec-health-track {
-    height: 10px;
-    background: rgba(148, 163, 184, 0.18);
-    border-radius: 999px;
+    height: 8px;
+    background: #55517e;
+    border-radius: 50px;
     overflow: hidden;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 .exec-health-fill {
     height: 100%;
-    border-radius: 999px;
+    border-radius: 50px;
 }
 .exec-health-meta {
-    font-size: 0.74rem;
-    color: #94A3B8;
+    font-size: 0.72rem;
+    color: #adb6d5;
 }
 </style>
 """
@@ -133,9 +186,9 @@ def _active_targets():
     return st.session_state.get("_targets") or DEFAULT_TARGETS
 
 
-def _glass_card(col, label: str, value: str, accent: str = "#8B5CF6",
+def _glass_card(col, label: str, value: str, accent: str = "#a489ff",
                 note: str = None) -> None:
-    """Glass card single-line HTML (aman dari bug markdown)."""
+    """Glass card single-line HTML (aman dari bug markdown) — dark."""
     note_html = f'<div class="exec-glass-note">{note}</div>' if note else ""
     html = (
         f'<div class="exec-glass" style="--accent: {accent};">'
@@ -166,12 +219,12 @@ def _health_score(s, targets):
     tw = sum(weights)
     score = sum(c * w for c, w in zip(components, weights)) / tw if tw else 0.0
     if score >= 90:
-        return score, "Excellent", "#10B981"
+        return score, "Excellent", "#77edb4"
     elif score >= 80:
-        return score, "Good", "#8B5CF6"
+        return score, "Good", "#a489ff"
     elif score >= 70:
-        return score, "Fair", "#F59E0B"
-    return score, "Needs Attention", "#EF4444"
+        return score, "Fair", "#f7d578"
+    return score, "Needs Attention", "#ff9eaa"
 
 
 def _render_health_banner(score: float, status: str, color: str) -> None:
@@ -184,7 +237,7 @@ def _render_health_banner(score: float, status: str, color: str) -> None:
         f'</div>'
         f'<div class="exec-health-right">'
         f'<div class="exec-health-track">'
-        f'<div class="exec-health-fill" style="width:{score}%; background: linear-gradient(90deg, #8B5CF6 0%, {color} 100%);"></div>'
+        f'<div class="exec-health-fill" style="width:{score}%; background: linear-gradient(90deg, #a489ff 0%, {color} 100%);"></div>'
         f'</div>'
         f'<div class="exec-health-meta">Agregat tertimbang dari Yield (30%), OEE (30%), Scrap (20%), dan Cost (20%).</div>'
         f'</div>'
@@ -193,88 +246,47 @@ def _render_health_banner(score: float, status: str, color: str) -> None:
     st.markdown(html, unsafe_allow_html=True)
 
 
-# ==================== HEADER ====================
-def _render_header(ds, scope, targets) -> None:
-    plant_label = scope.plant or "Semua Plant"
-    line_label = scope.line or "Semua Line"
-    period = (f"{scope.start} s/d {scope.end}"
-              if scope.start and scope.end else "Semua periode")
-
-    st.markdown(f"""
-    <div style="
-        background: linear-gradient(135deg, #1E1B4B 0%, #4C1D95 50%, #8B5CF6 100%);
-        color: #FFFFFF;
-        padding: 28px 32px;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.25);
-        margin-bottom: 20px;
-    ">
-        <div style="display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wrap; gap: 16px;">
-            <div>
-                <div style="font-size: 0.75rem; letter-spacing: 1.5px; opacity: 0.85;
-                    font-weight: 600; margin-bottom: 6px;">📊 EXECUTIVE REPORT</div>
-                <div style="font-size: 1.9rem; font-weight: 800; letter-spacing: -1px;
-                    line-height: 1.1;">Decidiq — Performance Summary</div>
-                <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 8px;
-                    font-weight: 500;">{plant_label} · {line_label} · {period}</div>
-            </div>
-            <div style="text-align: right; background: rgba(255,255,255,0.15);
-                padding: 14px 20px; border-radius: 12px;
-                border: 1px solid rgba(255,255,255,0.2);">
-                <div style="font-size: 0.7rem; letter-spacing: 1px; opacity: 0.85;
-                    font-weight: 600;">TARGET AKTIF</div>
-                <div style="font-size: 0.85rem; font-weight: 600; margin-top: 6px;
-                    line-height: 1.6;">Yield ≥ {targets.yield_min:g}% · Scrap ≤ {targets.scrap_max:g}% · OEE ≥ {targets.oee_min:g}%</div>
-                <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 4px;">
-                    Dibaca: {ds.report.loaded_at[:16]}</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# ==================== NARRATIVE ====================
+# ==================== NARRATIVE (DARK) ====================
 def _render_narrative(narrative) -> None:
     st.markdown("### 📰 Executive Summary")
 
     st.markdown(f"""
     <div style="
-        background: linear-gradient(90deg, #F5F3FF 0%, #FAF5FF 100%);
-        border-left: 5px solid #8B5CF6;
+        background: #1b1e3e;
+        border-left: 5px solid #a489ff;
         padding: 16px 20px;
         border-radius: 10px;
         margin-bottom: 16px;
     ">
-        <div style="font-size: 1.15rem; font-weight: 700; color: #1E1B4B;
-            letter-spacing: -0.3px;">{narrative.headline}</div>
+        <div style="font-size: 1.1rem; font-weight: 700; color: #f5f6ff;
+            letter-spacing: -0.02em;">{narrative.headline}</div>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown(f"""
     <div style="
-        background: #FFFFFF;
-        border: 1px solid #E9D5FF;
+        background: #191d3b;
+        border: 1px solid #343858;
         border-radius: 12px;
         padding: 20px 24px;
         margin-bottom: 20px;
-        font-size: 0.95rem;
-        color: #334155;
+        font-size: 0.9rem;
+        color: #dce0f4;
         line-height: 1.7;
     ">{narrative.executive_summary}</div>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2, gap="medium")
 
     with col1:
         if narrative.achievements.items:
             items_html = "".join(
-                f'<div style="font-size: 0.85rem; color: #064E3B; padding: 4px 0;">• {item}</div>'
+                f'<div style="font-size: 0.82rem; color: #d8dcf2; padding: 4px 0;">• {item}</div>'
                 for item in narrative.achievements.items)
             st.markdown(f"""
-            <div style="background: #ECFDF5; border-left: 4px solid #10B981;
+            <div style="background: #172d35; border-left: 4px solid #276956;
                 padding: 16px 20px; border-radius: 10px; margin-bottom: 14px;">
-                <div style="font-size: 0.9rem; font-weight: 700; color: #065F46;
+                <div style="font-size: 0.88rem; font-weight: 800; color: #77edb4;
                     margin-bottom: 10px;">{narrative.achievements.icon} {narrative.achievements.title}</div>
                 {items_html}
             </div>
@@ -282,12 +294,12 @@ def _render_narrative(narrative) -> None:
 
         if narrative.criticals.items:
             items_html = "".join(
-                f'<div style="font-size: 0.85rem; color: #7F1D1D; padding: 4px 0;">• {item}</div>'
+                f'<div style="font-size: 0.82rem; color: #d8dcf2; padding: 4px 0;">• {item}</div>'
                 for item in narrative.criticals.items)
             st.markdown(f"""
-            <div style="background: #FEF2F2; border-left: 4px solid #EF4444;
+            <div style="background: #35243a; border-left: 4px solid #794456;
                 padding: 16px 20px; border-radius: 10px; margin-bottom: 14px;">
-                <div style="font-size: 0.9rem; font-weight: 700; color: #991B1B;
+                <div style="font-size: 0.88rem; font-weight: 800; color: #ff9eaa;
                     margin-bottom: 10px;">{narrative.criticals.icon} {narrative.criticals.title}</div>
                 {items_html}
             </div>
@@ -296,12 +308,12 @@ def _render_narrative(narrative) -> None:
     with col2:
         if narrative.warnings.items:
             items_html = "".join(
-                f'<div style="font-size: 0.85rem; color: #78350F; padding: 4px 0;">• {item}</div>'
+                f'<div style="font-size: 0.82rem; color: #d8dcf2; padding: 4px 0;">• {item}</div>'
                 for item in narrative.warnings.items)
             st.markdown(f"""
-            <div style="background: #FFFBEB; border-left: 4px solid #F59E0B;
+            <div style="background: #302b30; border-left: 4px solid #756036;
                 padding: 16px 20px; border-radius: 10px; margin-bottom: 14px;">
-                <div style="font-size: 0.9rem; font-weight: 700; color: #92400E;
+                <div style="font-size: 0.88rem; font-weight: 800; color: #f7d578;
                     margin-bottom: 10px;">{narrative.warnings.icon} {narrative.warnings.title}</div>
                 {items_html}
             </div>
@@ -309,12 +321,12 @@ def _render_narrative(narrative) -> None:
 
         if narrative.recommendations.items:
             items_html = "".join(
-                f'<div style="font-size: 0.85rem; color: #3B0764; padding: 4px 0;">{i}. {item}</div>'
+                f'<div style="font-size: 0.82rem; color: #d8dcf2; padding: 4px 0;">{i}. {item}</div>'
                 for i, item in enumerate(narrative.recommendations.items, 1))
             st.markdown(f"""
-            <div style="background: #F5F3FF; border-left: 4px solid #8B5CF6;
+            <div style="background: #292449; border-left: 4px solid #6551a0;
                 padding: 16px 20px; border-radius: 10px; margin-bottom: 14px;">
-                <div style="font-size: 0.9rem; font-weight: 700; color: #4C1D95;
+                <div style="font-size: 0.88rem; font-weight: 800; color: #c4aaff;
                     margin-bottom: 10px;">{narrative.recommendations.icon} {narrative.recommendations.title}</div>
                 {items_html}
             </div>
@@ -323,30 +335,35 @@ def _render_narrative(narrative) -> None:
     st.info(narrative.closing)
 
 
-# ==================== KPI GRID ====================
+# ==================== KPI GRID (DARK) ====================
 def _render_kpi_grid(s) -> None:
     st.markdown("### 📊 Ringkasan KPI")
 
-    def _fmt(kpi, fmt, default="—"):
-        return fmt.format(kpi.value) if kpi.available else default
+    def _show(kpi, fmt_fn):
+        """Ambil value KPI dan format pakai fungsi custom."""
+        if not kpi.available:
+            return "—"
+        return fmt_fn(kpi.value)
 
-    r1 = st.columns(4)
-    _glass_card(r1[0], "Production Volume", _fmt(s.output_kg, "{:,.0f} Kg"), "#8B5CF6")
-    _glass_card(r1[1], "Yield", _fmt(s.yield_pct, "{:.2f}%"), "#10B981")
-    _glass_card(r1[2], "Scrap", _fmt(s.scrap_pct, "{:.2f}%"), "#F59E0B")
-    _glass_card(r1[3], "OEE", _fmt(s.oee.oee, "{:.2f}%"), "#3B82F6")
+    r1 = st.columns(4, gap="medium")
+    _glass_card(r1[0], "Production Volume",
+                _show(s.output_kg, lambda v: _fmt_thousand(v) + " Kg"),
+                "#a489ff")
+    _glass_card(r1[1], "Yield", _show(s.yield_pct, _fmt_pct), "#77edb4")
+    _glass_card(r1[2], "Scrap", _show(s.scrap_pct, _fmt_pct), "#f7d578")
+    _glass_card(r1[3], "OEE", _show(s.oee.oee, _fmt_pct), "#71d5e9")
 
     st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
 
-    r2 = st.columns(4)
-    _glass_card(r2[0], "COGM", _fmt(s.cogm, "Rp {:,.0f}"), "#EC4899")
-    _glass_card(r2[1], "Cost/Kg", _fmt(s.cost_per_kg, "Rp {:,.0f}"), "#A855F7")
+    r2 = st.columns(4, gap="medium")
+    _glass_card(r2[0], "COGM", _show(s.cogm, _fmt_rp), "#ec3f92")
+    _glass_card(r2[1], "Cost/Kg", _show(s.cost_per_kg, _fmt_rp), "#c4aaff")
     score_val = f"{s.score.score}/100" if s.score.score is not None else "—"
-    _glass_card(r2[2], "Cost Control Score", score_val, "#6366F1")
-    _glass_card(r2[3], "Kategori", s.score.category or "—", "#14B8A6")
+    _glass_card(r2[2], "Cost Control Score", score_val, "#a489ff")
+    _glass_card(r2[3], "Kategori", s.score.category or "—", "#89d84a")
 
 
-# ==================== ALERTS ====================
+# ==================== ALERTS (DARK) ====================
 def _render_alerts(alerts) -> None:
     if not alerts:
         return
@@ -355,30 +372,30 @@ def _render_alerts(alerts) -> None:
 
     total_annual = sum(abs(a.annual_rp) for a in alerts)
     st.markdown(f"""
-    <div style="background: #FEF2F2; border: 1px solid #FECACA;
+    <div style="background: #35243a; border: 1px solid #794456;
         border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;">
-        <div style="font-size: 0.8rem; color: #991B1B; font-weight: 600;
-            letter-spacing: 0.5px;">💰 TOTAL POTENSI DAMPAK</div>
-        <div style="font-size: 1.6rem; font-weight: 800; color: #7F1D1D;
-            letter-spacing: -0.8px; margin-top: 4px;">Rp {total_annual:,.0f}/tahun</div>
-        <div style="font-size: 0.85rem; color: #991B1B; margin-top: 4px;">
+        <div style="font-size: 0.7rem; color: #ff9eaa; font-weight: 800;
+            letter-spacing: 0.06em; text-transform: uppercase;">💰 TOTAL POTENSI DAMPAK</div>
+        <div style="font-size: 1.5rem; font-weight: 800; color: #ffffff;
+            letter-spacing: -0.03em; margin-top: 6px;">{_fmt_rp(total_annual)}/tahun</div>
+        <div style="font-size: 0.8rem; color: #d8dcf2; margin-top: 4px;">
             Yang bisa dihemat jika semua masalah diperbaiki.</div>
     </div>
     """, unsafe_allow_html=True)
 
     for a in alerts:
         icon = {"high": "🔴", "medium": "🟡", "info": "🔵"}.get(a.severity, "⚪")
-        color = {"high": "#EF4444", "medium": "#F59E0B", "info": "#3B82F6"}.get(a.severity, "#64748B")
+        border = {"high": "#ff9eaa", "medium": "#f7d578", "info": "#71d5e9"}.get(a.severity, "#adb6d5")
         st.markdown(f"""
-        <div style="background: #FFFFFF; border: 1px solid #E9D5FF;
-            border-left: 5px solid {color}; border-radius: 12px;
+        <div style="background: #1b1e3e; border: 1px solid #343858;
+            border-left: 5px solid {border}; border-radius: 12px;
             padding: 16px 20px; margin-bottom: 12px;">
-            <div style="font-size: 1rem; font-weight: 700; color: #1E1B4B;
+            <div style="font-size: 0.95rem; font-weight: 700; color: #f5f6ff;
                 margin-bottom: 6px;">{icon} {a.title}</div>
-            <div style="font-size: 0.85rem; color: #64748B; margin-bottom: 8px;">{a.message}</div>
-            <div style="font-size: 0.9rem; font-weight: 700; color: #DC2626;
-                margin-bottom: 6px;">💰 Rp {a.monthly_rp:,.0f}/bulan · Rp {a.annual_rp:,.0f}/tahun</div>
-            <div style="font-size: 0.82rem; color: #475569; font-style: italic;">🔧 {a.fix_hint}</div>
+            <div style="font-size: 0.82rem; color: #adb6d5; margin-bottom: 8px;">{a.message}</div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #ff9eaa;
+                margin-bottom: 6px;">💰 {_fmt_rp(a.monthly_rp)}/bulan · {_fmt_rp(a.annual_rp)}/tahun</div>
+            <div style="font-size: 0.78rem; color: #b8bedb; font-style: italic;">🔧 {a.fix_hint}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -405,9 +422,12 @@ def _render_mom(ds) -> None:
         status = ("✅ Membaik" if improving is True
                   else ("🔴 Memburuk" if improving is False else "➖ Stabil"))
         rows.append({
-            "KPI": c.label, prev: c.fmt_value(c.prev_value),
+            "KPI": c.label,
+            prev: c.fmt_value(c.prev_value),
             curr: c.fmt_value(c.curr_value),
-            "Δ": c.fmt_delta(), "Δ %": c.fmt_pct(), "Status": status,
+            "Δ": c.fmt_delta(),
+            "Δ %": c.fmt_pct(),
+            "Status": status,
         })
     import pandas as pd
     st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
@@ -415,22 +435,50 @@ def _render_mom(ds) -> None:
 
 # ==================== VARIANCE & INVENTORY ====================
 def _render_variance_and_inventory(ds) -> None:
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2, gap="medium")
     with col1:
         if (ds.budget is not None and not ds.budget.empty
                 and {"Category", "Budget", "Actual"} <= set(ds.budget.columns)):
             st.markdown("### 💰 Variance Biaya")
-            st.dataframe(variance_table(ds.budget),
-                         width='stretch', hide_index=True)
+
+            tbl = variance_table(ds.budget).copy()
+
+            # Format semua kolom numerik ke string Indonesia
+            for col in tbl.columns:
+                col_lower = str(col).lower()
+
+                # Kolom persen
+                if "pct" in col_lower or "%" in col_lower or "percent" in col_lower:
+                    tbl[col] = tbl[col].apply(_fmt_pct)
+                    continue
+
+                # Kolom nilai uang
+                if any(k in col_lower for k in ("budget", "actual", "variance")):
+                    tbl[col] = tbl[col].apply(_fmt_rp)
+                    continue
+
+                # Kolom numerik lain (fallback)
+                try:
+                    import pandas as pd
+                    if pd.api.types.is_numeric_dtype(tbl[col]):
+                        if pd.api.types.is_float_dtype(tbl[col]):
+                            tbl[col] = tbl[col].apply(lambda v: _fmt_thousand(v, 2))
+                        else:
+                            tbl[col] = tbl[col].apply(_fmt_thousand)
+                except Exception:
+                    pass
+
+            st.dataframe(tbl, width='stretch', hide_index=True)
+
     with col2:
         if ds.inventory is not None and not ds.inventory.empty:
             st.markdown("### 📦 Inventaris")
             it = inventory_table(ds.inventory)
             slow = int((it["Status"] == "Slow Moving").sum())
             dead = int((it["Status"] == "Dead Stock").sum())
-            c1, c2 = st.columns(2)
-            _glass_card(c1, "Slow Moving", str(slow), "#F59E0B")
-            _glass_card(c2, "Dead Stock", str(dead), "#EF4444")
+            c1, c2 = st.columns(2, gap="medium")
+            _glass_card(c1, "Slow Moving", str(slow), "#f7d578")
+            _glass_card(c2, "Dead Stock", str(dead), "#ff9eaa")
 
 
 # ==================== EXPORT ====================
@@ -438,7 +486,7 @@ def _render_export_buttons(ds, scope, targets) -> None:
     st.markdown("### 📤 Export Report")
     st.caption("Download laporan dalam berbagai format.")
 
-    col_pdf, col_excel, col_ppt = st.columns(3)
+    col_pdf, col_excel, col_ppt = st.columns(3, gap="medium")
 
     with col_pdf:
         if st.button("📄 Buat PDF", type="primary", width='stretch'):
@@ -493,7 +541,6 @@ def render(ds: Dataset, scope: Scope) -> None:
     targets = _active_targets()
     s = summarize(ds, scope)
 
-    # ===== HEADER KONSISTEN (menggantikan _render_header lama) =====
     page_header(
         title="Executive Report",
         subtitle=(
@@ -507,46 +554,33 @@ def render(ds: Dataset, scope: Scope) -> None:
         icon="📋",
     )
 
-    # ===== MINI HEALTH SCORE =====
     try:
         score, status, color = compute_health_score(s, targets)
         mini_health_score(score, status, color)
     except Exception:
         pass
-    
+
     if ds.is_demo:
         st.warning("🧪 **DEMO DATA** — angka di bawah adalah data contoh.")
 
-    # Health Score Banner
     score, status, color = _health_score(s, targets)
     _render_health_banner(score, status, color)
 
-    # Narrative
     narrative = generate_narrative(ds, s, targets)
     _render_narrative(narrative)
 
     st.markdown("---")
-
-    # KPI Grid
     _render_kpi_grid(s)
 
     st.markdown("---")
-
-    # Cost Alert
     alerts = compute_alerts(s, targets)
     _render_alerts(alerts)
 
     st.markdown("---")
-
-    # MoM
     _render_mom(ds)
 
     st.markdown("---")
-
-    # Variance & Inventory
     _render_variance_and_inventory(ds)
 
     st.markdown("---")
-
-    # Export Buttons
     _render_export_buttons(ds, scope, targets)
