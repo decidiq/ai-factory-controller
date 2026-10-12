@@ -35,5 +35,5 @@ executive_report_*.pptx
 
 # Temp Files
 code_only.txt
-*.bak
+*.bak*
 *.backup
