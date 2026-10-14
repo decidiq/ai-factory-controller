@@ -3,6 +3,10 @@ from dataclasses import dataclass, replace
 from typing import Optional
 import pandas as pd
 
+# ==================== GOOGLE ANALYTICS ====================
+GA_MEASUREMENT_ID = "G-YXNYX8B5DZ"
+# ========================================================
+
 # ==================== DEV MODE (JANGAN COMMIT SAAT TRUE) ====================
 # ⚠️ Set DEV_BYPASS_LOGIN = False sebelum push ke production!
 DEV_BYPASS_LOGIN = False         # False = login page muncul

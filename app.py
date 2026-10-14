@@ -7,6 +7,7 @@ import os
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from fc import audit
 from fc.config import DEFAULT_DATA_FILE
@@ -25,9 +26,36 @@ from fc.ui import (
     cost_dna, what_if, recommendations,
     settings, memory,
 )
+# ==================== GOOGLE ANALYTICS TRACKING ====================
+def _inject_ga_tracking():
+    """Inject Google Analytics 4 tracking code (sekali per session)."""
+    try:
+        from fc.config import GA_MEASUREMENT_ID
+    except ImportError:
+        return
+
+    if not GA_MEASUREMENT_ID:
+        return
+
+    ga_html = f"""
+    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_MEASUREMENT_ID}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){{dataLayer.push(arguments);}}
+      gtag('js', new Date());
+      gtag('config', '{GA_MEASUREMENT_ID}', {{
+        'send_page_view': true,
+        'cookie_flags': 'SameSite=None;Secure'
+      }});
+    </script>
+    """
+    components.html(ga_html, height=0, width=0)
+# ==================================================================
 
 st.set_page_config(page_title="Decidiq", layout="wide")
 styles.inject()
+# Inject Google Analytics
+_inject_ga_tracking()
 
 # Inisialisasi DB audit (sekali saja)
 try:
