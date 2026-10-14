@@ -7,7 +7,6 @@ import os
 
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 from fc import audit
 from fc.config import DEFAULT_DATA_FILE
@@ -28,7 +27,7 @@ from fc.ui import (
 )
 # ==================== GOOGLE ANALYTICS TRACKING ====================
 def _inject_ga_tracking():
-    """Inject Google Analytics 4 tracking code (sekali per session)."""
+    """Inject Google Analytics 4 via st.html() — kompatibel Streamlit Cloud."""
     try:
         from fc.config import GA_MEASUREMENT_ID
     except ImportError:
@@ -44,12 +43,17 @@ def _inject_ga_tracking():
       function gtag(){{dataLayer.push(arguments);}}
       gtag('js', new Date());
       gtag('config', '{GA_MEASUREMENT_ID}', {{
-        'send_page_view': true,
-        'cookie_flags': 'SameSite=None;Secure'
+        'send_page_view': true
       }});
     </script>
     """
-    components.html(ga_html, height=0, width=0)
+
+    try:
+        st.html(ga_html)
+    except AttributeError:
+        # Fallback untuk Streamlit < 1.33
+        import streamlit.components.v1 as components
+        components.html(ga_html, height=0, width=0)
 # ==================================================================
 
 st.set_page_config(page_title="Decidiq", layout="wide")
