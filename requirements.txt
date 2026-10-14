@@ -9,3 +9,4 @@ fpdf2
 python-pptx
 statsmodels
 openai>=1.30.0
+streamlit-analytics2

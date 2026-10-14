@@ -7,6 +7,7 @@ import os
 
 import pandas as pd
 import streamlit as st
+import streamlit_analytics2 as sa2
 
 from fc import audit
 from fc.config import DEFAULT_DATA_FILE
@@ -25,41 +26,9 @@ from fc.ui import (
     cost_dna, what_if, recommendations,
     settings, memory,
 )
-# ==================== GOOGLE ANALYTICS TRACKING ====================
-def _inject_ga_tracking():
-    """Inject Google Analytics 4 via st.html() — kompatibel Streamlit Cloud."""
-    try:
-        from fc.config import GA_MEASUREMENT_ID
-    except ImportError:
-        return
-
-    if not GA_MEASUREMENT_ID:
-        return
-
-    ga_html = f"""
-    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_MEASUREMENT_ID}"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){{dataLayer.push(arguments);}}
-      gtag('js', new Date());
-      gtag('config', '{GA_MEASUREMENT_ID}', {{
-        'send_page_view': true
-      }});
-    </script>
-    """
-
-    try:
-        st.html(ga_html)
-    except AttributeError:
-        # Fallback untuk Streamlit < 1.33
-        import streamlit.components.v1 as components
-        components.html(ga_html, height=0, width=0)
-# ==================================================================
 
 st.set_page_config(page_title="Decidiq", layout="wide")
 styles.inject()
-# Inject Google Analytics
-_inject_ga_tracking()
 
 # Inisialisasi DB audit (sekali saja)
 try:
@@ -361,48 +330,57 @@ except Exception:
     pass
 
 
-# ==================== ROUTING ====================
+# ==================== ANALYTICS TRACKING + ROUTING ====================
 
-if menu == "Dashboard":
-    dashboard.render(ds, scope)
-elif menu == "Kualitas Data":
-    data_quality.render(ds)
-elif menu == "Audit Trail":
-    audit_trail.render(ds, scope)
-elif menu == "Cost DNA":
-    cost_dna.render(ds, scope)
-elif menu == "What-If Simulator":
-    what_if.render(ds, scope)
-elif menu == "Recommendations":
-    recommendations.render(ds, scope)
-elif menu == "Production Analysis":
-    production_analysis.render(ds, scope)
-elif menu == "Cost Analysis":
-    cost_analysis.render(ds, scope)
-elif menu == "Multi-Plant & Cost Allocation":
-    multi_plant.render(ds, scope)
-elif menu == "Manufacturing Variance":
-    manufacturing_variance.render(ds, scope)
-elif menu == "Inventory Analysis":
-    inventory_analysis.render(ds, scope)
-elif menu == "Risk Register":
-    risk_register.render(ds, scope)
-elif menu == "Predictive Analytics":
-    predictive_analytics.render(ds, scope)
-elif menu == "Executive Report":
-    executive_report.render(ds, scope)
-elif menu == "AI Copilot":
-    ai_copilot.render(ds, scope)
-elif menu == "Multi-Agent Collaboration":
-    multi_agent_collaboration.render(ds, scope)
-elif menu == "AI Factory OS (Phase 5)":
-    ai_factory_os.render(ds, scope)
-elif menu == "Settings":
-    settings.render(ds, scope)
-elif menu == "Memory":
-    memory.render(ds, scope)
-else:
-    st.title(menu)
-    st.info(f"Halaman '{menu}' belum dimigrasi ke struktur baru.")
-    if ds.production is not None:
-        st.dataframe(ds.production.head(50))
+# Setup analytics database path
+_ANALYTICS_DB = os.path.join("data", "analytics.db")
+try:
+    os.makedirs("data", exist_ok=True)
+except Exception:
+    pass
+
+# Wrap routing dengan analytics tracker
+with sa2.track(events_path=_ANALYTICS_DB, verbose=False):
+    if menu == "Dashboard":
+        dashboard.render(ds, scope)
+    elif menu == "Kualitas Data":
+        data_quality.render(ds)
+    elif menu == "Audit Trail":
+        audit_trail.render(ds, scope)
+    elif menu == "Cost DNA":
+        cost_dna.render(ds, scope)
+    elif menu == "What-If Simulator":
+        what_if.render(ds, scope)
+    elif menu == "Recommendations":
+        recommendations.render(ds, scope)
+    elif menu == "Production Analysis":
+        production_analysis.render(ds, scope)
+    elif menu == "Cost Analysis":
+        cost_analysis.render(ds, scope)
+    elif menu == "Multi-Plant & Cost Allocation":
+        multi_plant.render(ds, scope)
+    elif menu == "Manufacturing Variance":
+        manufacturing_variance.render(ds, scope)
+    elif menu == "Inventory Analysis":
+        inventory_analysis.render(ds, scope)
+    elif menu == "Risk Register":
+        risk_register.render(ds, scope)
+    elif menu == "Predictive Analytics":
+        predictive_analytics.render(ds, scope)
+    elif menu == "Executive Report":
+        executive_report.render(ds, scope)
+    elif menu == "AI Copilot":
+        ai_copilot.render(ds, scope)
+    elif menu == "Multi-Agent Collaboration":
+        multi_agent_collaboration.render(ds, scope)
+    elif menu == "AI Factory OS (Phase 5)":
+        ai_factory_os.render(ds, scope)
+    elif menu == "Settings":
+        settings.render(ds, scope)
+    elif menu == "Memory":
+        memory.render(ds, scope)
+    else:
+        st.title(menu)
+        st.info(f"Halaman '{menu}' belum dimigrasi ke struktur baru.")
+        if ds.production is not None:
+            st.dataframe(ds.production.head(50))
