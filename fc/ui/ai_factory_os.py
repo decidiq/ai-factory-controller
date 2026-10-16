@@ -12,6 +12,7 @@ from datetime import datetime
 import streamlit as st
 
 from fc.agents import list_agents, run_orchestrated
+from fc.agents import memory as agent_memory
 
 
 CSS = """
@@ -129,6 +130,9 @@ def _ensure_state():
         st.session_state["_agents_history"] = []
     if "_agents_task_input" not in st.session_state:
         st.session_state["_agents_task_input"] = ""
+    if "_session_id" not in st.session_state:
+        import uuid
+        st.session_state["_session_id"] = str(uuid.uuid4())[:8]
 
 
 def _render_header():
@@ -230,13 +234,61 @@ def _render_history():
             st.caption(h["task"])
             st.markdown("---")
 
+def _render_memory_panel():
+    """Panel memory: stats + tombol clear."""
+    st_stats = agent_memory.stats()
+
+    with st.expander(
+        f"🧠 Memori Agent — {st_stats['total']} run tersimpan "
+        f"(avg confidence {st_stats['avg_confidence']}%)",
+        expanded=False,
+    ):
+        if st_stats["total"] == 0:
+            st.caption("Belum ada riwayat. Jalankan agent untuk mulai membangun memori.")
+            return
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total run", st_stats["total"])
+        with col2:
+            st.metric("Rata-rata confidence", f"{st_stats['avg_confidence']}%")
+        with col3:
+            st.metric("Rata-rata durasi", f"{st_stats['avg_duration_ms']} ms")
+
+        st.markdown("**Distribusi per agent:**")
+        for agent_name, n in st_stats["by_agent"]:
+            pct = n / st_stats["total"] * 100
+            st.markdown(f"- `{agent_name}` — {n} run ({pct:.0f}%)")
+
+        st.markdown("**Aktivitas 14 hari terakhir:**")
+        days = st_stats["by_day"]
+        if days:
+            for day, n in days[:7]:
+                bar = "█" * min(30, n)
+                st.caption(f"{day}  {bar} {n}")
+
+        st.markdown("---")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🧹 Hapus run >30 hari", use_container_width=True):
+                n = agent_memory.clear_old(days=30)
+                st.success(f"✅ {n} run dihapus")
+                st.rerun()
+        with c2:
+            if st.button("🗑️ Hapus semua memori", use_container_width=True):
+                n = agent_memory.clear_all()
+                st.warning(f"⚠️ {n} run dihapus")
+                st.rerun()
 
 def render(ds, scope) -> None:
     _inject_css()
     _ensure_state()
     _render_header()
 
+    _render_memory_panel()
+
     choice = _render_sidebar()
+    
     _render_prompts(choice)
 
     st.markdown("---")

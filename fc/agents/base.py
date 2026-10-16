@@ -5,6 +5,7 @@ Prinsip desain:
 2. Agent adalah READ-ONLY. Tidak ada eksekusi otomatis.
 3. Setiap output punya confidence score + source tools (untuk audit).
 4. Reuse LLMProvider yang sudah ada (Groq/DeepSeek).
+5. Reuse AgentMemory untuk recall & save (Fase 5A).
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -16,7 +17,6 @@ from fc.intel.llm_provider import get_provider, LLMProvider
 
 @dataclass
 class AgentResult:
-    """Hasil dari satu agent run."""
     agent: str
     content: str
     data: Dict[str, Any] = field(default_factory=dict)
@@ -31,12 +31,12 @@ class AgentResult:
 
 
 class BaseAgent(ABC):
-    """Abstract base untuk semua agent."""
 
     name: str = "base"
     role: str = ""
     description: str = ""
     tools_allowed: tuple = ()
+    memory_enabled: bool = True    # ← BARU: bisa dimatikan per-agent
 
     system_prompt: str = (
         "Anda adalah agen analitik pabrik manufaktur untuk Decidiq.\n"
@@ -52,28 +52,22 @@ class BaseAgent(ABC):
     def __init__(self, llm: Optional[LLMProvider] = None):
         self.llm = llm or get_provider()
 
-    # ========== Wajib di-override ==========
     @abstractmethod
     def build_context(self, ds, scope, **kwargs) -> Dict[str, Any]:
-        """Kumpulkan data dari tools → dict siap kirim ke LLM.
-
-        Return: {"tool_name": {"ok": bool, "text": str, ...}, ...}
-        """
         ...
 
-    # ========== Opsional override ==========
     def build_question(self, task: str, context: Dict[str, Any]) -> str:
-        """Default: pakai task langsung."""
         return task
 
     def estimate_confidence(self, context: Dict[str, Any]) -> int:
-        """Default: 100 kalau ada minimal 1 tool success, else 0."""
         ok_count = sum(1 for v in context.values() if v.get("ok"))
         return min(100, ok_count * 30) if ok_count else 0
 
     # ========== Main entry ==========
     def run(self, task: str, ds, scope, **kwargs) -> AgentResult:
         t0 = time.time()
+
+        # 1. Ambil context dari tools
         try:
             context = self.build_context(ds, scope, **kwargs)
         except Exception as exc:
@@ -85,10 +79,23 @@ class BaseAgent(ABC):
             )
 
         source_tools = [k for k, v in context.items() if v.get("ok")]
-        ctx_text = self._context_to_text(context)
 
+        # 2. Inject memori (lazy import — hindari circular)
+        memory_text = ""
+        if self.memory_enabled:
+            try:
+                from fc.agents.memory import get_context_for
+                memory_text = get_context_for(task, agent=self.name)
+            except Exception:
+                memory_text = ""
+
+        ctx_text = self._context_to_text(context)
+        if memory_text:
+            ctx_text = memory_text + "\n\n" + ctx_text
+
+        # 3. Kalau LLM tidak tersedia → fallback
         if not self.llm or not self.llm.is_available():
-            return AgentResult(
+            result = AgentResult(
                 agent=self.name,
                 content=self._fallback_markdown(task, context),
                 data=context,
@@ -97,13 +104,16 @@ class BaseAgent(ABC):
                 duration_ms=int((time.time() - t0) * 1000),
                 error="LLM tidak tersedia — menampilkan data mentah",
             )
+            self._save(result, task, scope)
+            return result
 
+        # 4. Panggil LLM
         try:
             answer = self.llm.ask(
                 question=self.build_question(task, context),
                 context=ctx_text,
             )
-            return AgentResult(
+            result = AgentResult(
                 agent=self.name,
                 content=answer,
                 data=context,
@@ -112,7 +122,7 @@ class BaseAgent(ABC):
                 duration_ms=int((time.time() - t0) * 1000),
             )
         except Exception as exc:
-            return AgentResult(
+            result = AgentResult(
                 agent=self.name,
                 content=self._fallback_markdown(task, context)
                         + f"\n\n⚠️ LLM error: `{exc}`",
@@ -122,6 +132,36 @@ class BaseAgent(ABC):
                 duration_ms=int((time.time() - t0) * 1000),
                 error=str(exc),
             )
+
+        # 5. Simpan ke memory
+        self._save(result, task, scope)
+        return result
+
+    # ========== Memory helper ==========
+    def _save(self, result: AgentResult, task: str, scope) -> None:
+        if not self.memory_enabled:
+            return
+        session_id = None
+        try:
+            import streamlit as st
+            session_id = st.session_state.get("_session_id")
+        except Exception:
+            pass
+        try:
+            from fc.agents.memory import save_run
+            save_run(
+                agent=result.agent,
+                task=task,
+                content=result.content,
+                confidence=result.confidence,
+                duration_ms=result.duration_ms,
+                source_tools=result.source_tools,
+                scope=scope,
+                session_id=session_id,
+                error=result.error,
+            )
+        except Exception:
+            pass
 
     # ========== Helpers ==========
     def _context_to_text(self, context: Dict[str, Any]) -> str:
