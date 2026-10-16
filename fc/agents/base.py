@@ -6,6 +6,7 @@ Prinsip desain:
 3. Setiap output punya confidence score + source tools (untuk audit).
 4. Reuse LLMProvider yang sudah ada (Groq/DeepSeek).
 5. Reuse AgentMemory untuk recall & save (Fase 5A).
+6. Demo mode: LLM off by design di cloud (Fase 5 — keamanan).
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -13,6 +14,28 @@ from typing import Any, Dict, List, Optional
 import time
 
 from fc.intel.llm_provider import get_provider, LLMProvider
+
+
+def _is_demo_mode() -> bool:
+    """Deteksi apakah app jalan di cloud/demo (LLM off by design).
+
+    Prioritas:
+    1. Explicit flag: secrets.DEMO_MODE = true
+    2. Auto-detect host *.streamlit.app
+    """
+    try:
+        import streamlit as st
+        if st.secrets.get("DEMO_MODE", False):
+            return True
+        try:
+            host = st.context.headers.get("Host", "")
+            if ".streamlit.app" in host:
+                return True
+        except Exception:
+            pass
+    except Exception:
+        pass
+    return False
 
 
 @dataclass
@@ -36,7 +59,7 @@ class BaseAgent(ABC):
     role: str = ""
     description: str = ""
     tools_allowed: tuple = ()
-    memory_enabled: bool = True    # ← BARU: bisa dimatikan per-agent
+    memory_enabled: bool = True
 
     system_prompt: str = (
         "Anda adalah agen analitik pabrik manufaktur untuk Decidiq.\n"
@@ -93,16 +116,23 @@ class BaseAgent(ABC):
         if memory_text:
             ctx_text = memory_text + "\n\n" + ctx_text
 
-        # 3. Kalau LLM tidak tersedia → fallback
-        if not self.llm or not self.llm.is_available():
+        # 3. Demo mode ATAU LLM tidak tersedia → fallback
+        demo_mode = _is_demo_mode()
+        if demo_mode or not self.llm or not self.llm.is_available():
+            if demo_mode:
+                msg = ("🔒 **Mode Demo** — narasi AI dinonaktifkan demi keamanan. "
+                       "Menampilkan data mentah dari tools.")
+            else:
+                msg = ("ℹ️ **LLM tidak tersedia** — mode data mentah. "
+                       "Set `GROQ_API_KEY` untuk mengaktifkan narasi AI.")
             result = AgentResult(
                 agent=self.name,
-                content=self._fallback_markdown(task, context),
+                content=msg + "\n\n" + self._fallback_markdown(task, context),
                 data=context,
                 confidence=self.estimate_confidence(context),
                 source_tools=source_tools,
                 duration_ms=int((time.time() - t0) * 1000),
-                error="LLM tidak tersedia — menampilkan data mentah",
+                error=msg,
             )
             self._save(result, task, scope)
             return result

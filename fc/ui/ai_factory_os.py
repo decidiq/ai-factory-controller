@@ -6,6 +6,8 @@ Ganti placeholder 'COMING SOON' jadi dashboard fungsional:
 - Lihat hasil: narasi + confidence + tools used + duration
 - Toggle raw data dari tools
 - History per session
+
+Demo mode: LLM off di cloud, banner informatif ditampilkan.
 """
 from datetime import datetime
 
@@ -136,6 +138,22 @@ QUICK_PROMPTS = {
 }
 
 
+def _is_demo_mode() -> bool:
+    """Cek apakah app di cloud/demo mode."""
+    try:
+        if st.secrets.get("DEMO_MODE", False):
+            return True
+        try:
+            host = st.context.headers.get("Host", "")
+            if ".streamlit.app" in host:
+                return True
+        except Exception:
+            pass
+    except Exception:
+        pass
+    return False
+
+
 def _inject_css():
     st.markdown(CSS, unsafe_allow_html=True)
 
@@ -162,6 +180,14 @@ def _render_header():
         '</div></div>'
     )
     st.markdown(html, unsafe_allow_html=True)
+
+    if _is_demo_mode():
+        st.info(
+            "🔒 **Mode Demo** — narasi AI dinonaktifkan demi keamanan. "
+            "Semua data dan tools tetap berfungsi penuh; jawaban LLM diganti "
+            "dengan tampilan data mentah. Untuk narasi AI penuh, jalankan "
+            "aplikasi secara lokal."
+        )
 
 
 def _render_sidebar():
@@ -206,7 +232,7 @@ def _render_result(result, force_agent: str):
     if force_agent == "auto":
         st.caption(f"🪄 Auto-routed ke agent: `{result.agent}`")
 
-    if result.error:
+    if result.error and "Mode Demo" not in result.error:
         st.warning(f"⚠️ {result.error}")
 
     st.markdown(result.content)
