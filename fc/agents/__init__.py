@@ -10,6 +10,7 @@ from .orchestrator import (
 )
 from .collaborative import CollaborativeOrchestrator, CollaborativeResult
 from . import memory as agent_memory
+from . import hitl
 
 __all__ = [
     # Core
@@ -33,4 +34,6 @@ __all__ = [
     "CollaborativeResult",
     # Memory
     "agent_memory",
+    # Human-in-the-Loop (Fase 5D)
+    "hitl",
 ]

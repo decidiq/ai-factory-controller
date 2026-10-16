@@ -14,8 +14,8 @@ from fc.agents import (
     list_agents,
     CollaborativeOrchestrator,
     agent_memory,
+    hitl,
 )
-
 
 CSS = """
 <style>
@@ -289,6 +289,79 @@ def _render_history():
             st.caption(h["task"])
             st.markdown("---")
 
+def _render_approval_synthesis(result):
+    """Panel approval untuk sintesis Executive."""
+    if not result.synthesis:
+        return
+
+    st.markdown("### 🤝 Keputusan Anda (Sintesis)")
+    st.caption(
+        "Setujui/tolak sintesis executive. Data per-agent tetap di atas "
+        "untuk referensi."
+    )
+
+    user = hitl.get_current_user()
+    st.caption(f"👤 Login sebagai: **{user}**")
+
+    notes = st.text_input(
+        "Catatan (opsional)",
+        placeholder="mis. Prioritas setuju, tapi butuh approval budget dulu",
+        key="_hitl_collab_notes",
+    )
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        approve = st.button("✅ Setujui", type="primary",
+                            use_container_width=True, key="_hitl_collab_approve")
+    with c2:
+        reject = st.button("❌ Tolak", use_container_width=True,
+                           key="_hitl_collab_reject")
+    with c3:
+        noted = st.button("📝 Catat saja", use_container_width=True,
+                          key="_hitl_collab_noted")
+
+    decision = None
+    if approve:
+        decision = "approve"
+    elif reject:
+        decision = "reject"
+    elif noted:
+        decision = "noted"
+
+    if decision:
+        rid = hitl.save_decision(
+            recommendation=result.task,
+            decision=decision,
+            notes=notes,
+            user=user,
+            agent="executive-collab",
+            confidence=result.avg_confidence,
+            extra_tags=["phase5c", "synthesis", f"agents:{','.join(result.agents_run)}"],
+        )
+        if rid > 0:
+            icon = {"approve": "✅", "reject": "❌", "noted": "📝"}[decision]
+            st.success(
+                f"{icon} Sintesis tersimpan (ID #{rid}). "
+                f"Masuk ke Institutional Memory."
+            )
+        else:
+            st.error("❌ Gagal menyimpan keputusan.")
+
+
+def _render_recent_decisions():
+    try:
+        recent = hitl.recent_decisions(limit=5)
+    except Exception:
+        return
+    if not recent:
+        return
+    with st.expander(f"🗳️ Keputusan Terakhir ({len(recent)})"):
+        for r in recent:
+            d = str(r.get("decision", "")).lower()
+            icon = {"approve": "✅", "reject": "❌", "noted": "📝"}.get(d, "•")
+            rec = str(r.get("recommendation", ""))[:100]
+            ts = str(r.get("timestamp", ""))[:16]
+            st.caption(f"{icon} **{ts}** · {r.get('user', '?')} · {rec}…")
 
 def render(ds, scope) -> None:
     _inject_css()
@@ -348,4 +421,9 @@ def render(ds, scope) -> None:
         _render_synthesis(result.synthesis, result.synthesis_error)
         _render_agent_results(result)
 
+        # Panel approval HITL (untuk sintesis)
+        st.markdown("---")
+        _render_approval_synthesis(result)
+
     _render_history()
+    _render_recent_decisions()

@@ -15,6 +15,7 @@ import streamlit as st
 
 from fc.agents import list_agents, run_orchestrated
 from fc.agents import memory as agent_memory
+from fc.agents import hitl
 
 
 CSS = """
@@ -322,6 +323,92 @@ def _render_memory_panel():
                 st.warning(f"⚠️ {n} run dihapus")
                 st.rerun()
 
+def _render_approval_panel(result, task: str):
+    """Panel approve/reject setelah agent run."""
+    st.markdown("### 🤝 Keputusan Anda")
+    st.caption(
+        "Setiap keputusan tercatat permanen di Institutional Memory (Fase 3). "
+        "Sistem akan belajar dari pola keputusan Anda."
+    )
+
+    user = hitl.get_current_user()
+    st.caption(f"👤 Login sebagai: **{user}**")
+
+    # Notes input
+    notes = st.text_input(
+        "Catatan (opsional)",
+        placeholder="mis. Setuju — perlu verifikasi mesin M-04 dulu",
+        key=f"_hitl_notes_{result.agent}",
+    )
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        approve = st.button(
+            "✅ Setujui", type="primary",
+            use_container_width=True,
+            key=f"_hitl_approve_{result.agent}",
+        )
+    with c2:
+        reject = st.button(
+            "❌ Tolak",
+            use_container_width=True,
+            key=f"_hitl_reject_{result.agent}",
+        )
+    with c3:
+        noted = st.button(
+            "📝 Catat saja",
+            use_container_width=True,
+            key=f"_hitl_noted_{result.agent}",
+        )
+
+    decision = None
+    if approve:
+        decision = "approve"
+    elif reject:
+        decision = "reject"
+    elif noted:
+        decision = "noted"
+
+    if decision:
+        rid = hitl.save_decision(
+            recommendation=task,
+            decision=decision,
+            notes=notes,
+            user=user,
+            agent=result.agent,
+            confidence=result.confidence,
+            extra_tags=["phase5d", "single-agent"],
+        )
+        if rid > 0:
+            icon = {"approve": "✅", "reject": "❌", "noted": "📝"}[decision]
+            st.success(
+                f"{icon} Keputusan tersimpan (ID #{rid}). "
+                f"Institutional Memory akan update otomatis."
+            )
+        else:
+            st.error("❌ Gagal menyimpan keputusan. Cek log database.")
+
+
+def _render_recent_decisions():
+    """Panel kecil: keputusan terakhir dari user."""
+    try:
+        recent = hitl.recent_decisions(limit=5)
+    except Exception:
+        return
+    if not recent:
+        return
+
+    with st.expander(f"🗳️ Keputusan Terakhir ({len(recent)})"):
+        for r in recent:
+            decision_raw = str(r.get("decision", "")).lower()
+            icon = {"approve": "✅", "reject": "❌", "noted": "📝"}.get(decision_raw, "•")
+            rec = str(r.get("recommendation", ""))[:100]
+            ts = str(r.get("timestamp", ""))[:16]
+            user = r.get("user", "?")
+            st.caption(f"{icon} **{ts}** · {user} · {rec}…")
+            notes = str(r.get("notes", "")).strip()
+            if notes:
+                st.caption(f"   💬 _{notes}_")
 
 def render(ds, scope) -> None:
     _inject_css()
@@ -372,4 +459,9 @@ def render(ds, scope) -> None:
 
         _render_result(result, choice)
 
+        # Panel approval HITL
+        st.markdown("---")
+        _render_approval_panel(result, task)
+
     _render_history()
+    _render_recent_decisions()
