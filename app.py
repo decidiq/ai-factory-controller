@@ -43,20 +43,20 @@ auth.require_login()
 # ==================== HELPER FUNCTIONS ====================
 
 def _render_template_prompt():
-    """Halaman download template — dipakai di mode 'Unggah Excel' kalau belum upload."""
+    """Halaman download template â€” dipakai di mode 'Unggah Excel' kalau belum upload."""
     try:
         from fc.template import generate_template
     except Exception as e:
         st.error(f"Template tidak tersedia: {e}")
         return
 
-    st.title("📤 Upload File Excel Anda")
+    st.title("ðŸ“¤ Upload File Excel Anda")
     st.markdown(
         "### Belum punya file Excel?\n"
-        "Download **template Excel** dulu → isi dengan data pabrik → upload kembali."
+        "Download **template Excel** dulu â†’ isi dengan data pabrik â†’ upload kembali."
     )
     st.markdown("---")
-    st.markdown("### 📋 Format Template — 11 Sheet")
+    st.markdown("### ðŸ“‹ Format Template â€” 11 Sheet")
     st.markdown(
         "| # | Sheet | Isi |\n"
         "|---|-------|-----|\n"
@@ -73,7 +73,7 @@ def _render_template_prompt():
         "| 11 | **Config** | Target KPI (opsional) |\n"
     )
     st.info(
-        "💡 **Kolom WAJIB:** Date, Machine, Output_Kg (Production); "
+        "ðŸ’¡ **Kolom WAJIB:** Date, Machine, Output_Kg (Production); "
         "Material, Cost, Qty_Kg (Raw_Material). Kolom lain opsional."
     )
     st.markdown("---")
@@ -82,7 +82,7 @@ def _render_template_prompt():
     with c2:
         template_bytes = generate_template()
         st.download_button(
-            label="📄 Download Template Excel",
+            label="ðŸ“„ Download Template Excel",
             data=template_bytes,
             file_name="decidiq_template.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -94,12 +94,12 @@ def _render_template_prompt():
 
 
 def _render_sidebar_template_button():
-    """Tombol download template kecil di sidebar — dipakai di beberapa mode."""
-    st.sidebar.markdown("**📥 Belum punya file Excel?**")
+    """Tombol download template kecil di sidebar â€” dipakai di beberapa mode."""
+    st.sidebar.markdown("**ðŸ“¥ Belum punya file Excel?**")
     try:
         from fc.template import generate_template
         st.sidebar.download_button(
-            label="📄 Download Template",
+            label="ðŸ“„ Download Template",
             data=generate_template(),
             file_name="decidiq_template.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -140,7 +140,7 @@ def _load_demo() -> Dataset:
 role = st.session_state["role"]
 username = st.session_state["username"]
 
-# ==================== SIDEBAR — USER PROFILE ====================
+# ==================== SIDEBAR â€” USER PROFILE ====================
 initial = (username or "U").strip()[0].upper()
 role_short = ("Director" if "Director" in role else
               "Manager" if "Manager" in role else "User")
@@ -150,17 +150,17 @@ st.sidebar.markdown(f"""
     <div class="sb-avatar">{initial}</div>
     <div class="sb-user-info">
         <div class="sb-user-name">{username}</div>
-        <div class="sb-user-role">● {role_short}</div>
+        <div class="sb-user-role">â— {role_short}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-if st.sidebar.button("🚪  Keluar / Logout", use_container_width=True,
+if st.sidebar.button("ðŸšª  Keluar / Logout", use_container_width=True,
                      key="logout_btn"):
     auth.logout()
 
-# ==================== SIDEBAR — NAVIGATION ====================
-st.sidebar.markdown('<div class="sb-section-header">🧭 Navigation</div>',
+# ==================== SIDEBAR â€” NAVIGATION ====================
+st.sidebar.markdown('<div class="sb-section-header">ðŸ§­ Navigation</div>',
                     unsafe_allow_html=True)
 
 if "menu" not in st.session_state or st.session_state["menu"] is None:
@@ -172,13 +172,13 @@ menu = st.session_state["menu"]
 # Render tiap kategori sebagai expander
 for category, items in role_menus.items():
     has_active = menu in items
-    expander_label = f"{category}" + ("  ●" if has_active else "")
+    expander_label = f"{category}" + ("  â—" if has_active else "")
 
     with st.sidebar.expander(expander_label, expanded=has_active):
         for item in items:
             is_active = (menu == item)
-            icon = auth.ICON_MAP.get(item, "▫️")
-            label = f"{icon}  {item}" if is_active else f"　{icon}  {item}"
+            icon = auth.ICON_MAP.get(item, "â–«ï¸")
+            label = f"{icon}  {item}" if is_active else f"ã€€{icon}  {item}"
 
             if st.button(
                 label,
@@ -195,12 +195,12 @@ menu = st.session_state.get("menu", "Dashboard")
 # Label radio HARUS sama persis dengan kondisi if-elif di bawah
 mode = st.sidebar.radio(
     "Sumber",
-    ["📁 Path File Excel", "📤 Unggah Excel", "🧪 Mode Demo"],
+    ["ðŸ“ Path File Excel", "ðŸ“¤ Unggah Excel", "ðŸ§ª Mode Demo"],
     label_visibility="collapsed",
     key="data_mode",
 )
 
-if st.sidebar.button("🔄 Refresh data"):
+if st.sidebar.button("ðŸ”„ Refresh data"):
     audit.log("refresh_data")
     st.cache_data.clear()
     st.rerun()
@@ -209,7 +209,7 @@ st.sidebar.markdown("---")
 
 # ==================== MODE SELECTION ====================
 
-if mode == "📁 Path File Excel":
+if mode == "ðŸ“ Path File Excel":
     # Text input untuk path file
     _render_sidebar_template_button()
 
@@ -220,14 +220,14 @@ if mode == "📁 Path File Excel":
         _is_demo_path(path),
     )
 
-elif mode == "📤 Unggah Excel":
+elif mode == "ðŸ“¤ Unggah Excel":
     # File uploader + prompt template
     _render_sidebar_template_button()
 
-    up = st.sidebar.file_uploader("📤 Pilih file .xlsx", type=["xlsx"],
+    up = st.sidebar.file_uploader("ðŸ“¤ Pilih file .xlsx", type=["xlsx"],
                                    key="upload_main")
     if up is None:
-        _render_template_prompt()  # ⬅️ panggil helper, tidak duplikat
+        _render_template_prompt()  # â¬…ï¸ panggil helper, tidak duplikat
     ds = _load_upload(up.getvalue(), up.name)
 
 else:  # Mode Demo
@@ -242,22 +242,22 @@ except ImportError:
     DEV_SHOW_BANNER = True
 
 if ds.is_demo and DEV_SHOW_BANNER:
-    st.warning("🧪 **DEMO DATA** - angka di bawah adalah data contoh, bukan data pabrik Anda.")
+    st.warning("ðŸ§ª **DEMO DATA** - angka di bawah adalah data contoh, bukan data pabrik Anda.")
 
 if not ds.ok:
-    st.title("🧪 Kualitas Data")
+    st.title("ðŸ§ª Kualitas Data")
     data_quality.render_blocking(ds)
     st.stop()
 
 if ds.report.rows_rejected:
-    st.warning(f"⚠️ {ds.report.rows_rejected} baris data ditolak oleh validasi. "
+    st.warning(f"âš ï¸ {ds.report.rows_rejected} baris data ditolak oleh validasi. "
                "Lihat menu **Kualitas Data**.")
 
 
 # ==================== FILTER GLOBAL ====================
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("📅 Periode Analisis")
+st.sidebar.subheader("ðŸ“… Periode Analisis")
 
 span = ds.date_span()
 if span is not None:
@@ -302,14 +302,14 @@ if span is not None:
         else:
             start = end = dr
 
-    st.sidebar.caption(f"📆 Aktif: **{start}** s/d **{end}**")
+    st.sidebar.caption(f"ðŸ“† Aktif: **{start}** s/d **{end}**")
 else:
     start = end = None
 
 
 # Filter Plant & Line
 st.sidebar.markdown("---")
-st.sidebar.subheader("🏭 Filter Plant & Line")
+st.sidebar.subheader("ðŸ­ Filter Plant & Line")
 
 plants = ds.plants()
 plant = st.sidebar.selectbox("Pilih Plant", ["Semua"] + plants) if plants else "Semua"
@@ -322,7 +322,7 @@ scope = Scope(
     start, end,
 )
 
-# Muat targets dari DB — sesuaikan dengan filter tanggal aktif
+# Muat targets dari DB â€” sesuaikan dengan filter tanggal aktif
 try:
     from fc.settings import get_active_targets
     st.session_state["_targets"] = get_active_targets(scope)
@@ -372,7 +372,7 @@ with sa2.track(events_path=_ANALYTICS_DB, verbose=False):
     elif menu == "AI Copilot":
         ai_copilot.render(ds, scope)
     elif menu == "Multi-Agent Collaboration":
-       ai_factory_os.render(ds, scope)
+        multi_agent_collaboration.render(ds, scope)
     elif menu == "AI Factory OS (Phase 5)":
         ai_factory_os.render(ds, scope)
     elif menu == "Settings":
