@@ -285,7 +285,6 @@ def _render_alerts(s, targets) -> None:
 
     total_annual = sum(abs(a.annual_rp) for a in alerts)
 
-    # Total banner (compact)
     if total_annual > 0:
         st.markdown(
             f'<div style="background:#302b30;border:1px solid #756036;'
@@ -298,7 +297,6 @@ def _render_alerts(s, targets) -> None:
             f'</div>',
             unsafe_allow_html=True)
 
-    # Compact alert cards
     for a in alerts:
         icon_map = {"high": "🔴", "medium": "🟡", "info": "🔵"}
         border_map = {"high": "#ff9eaa", "medium": "#f7d578", "info": "#71d5e9"}
