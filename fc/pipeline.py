@@ -11,6 +11,14 @@ from .validation import Issue, ValidationReport, validate_sheet
 
 RISK_TEXT_MAP = {"high": 3, "tinggi": 3, "medium": 2, "sedang": 2, "low": 1, "rendah": 1}
 
+# Kolom breakdown Standard_Cost
+STD_RP_PER_KG_COLS = (
+    "Standard_Labor_Rp_per_Kg",
+    "Standard_Utility_Rp_per_Kg",
+    "Standard_Depreciation_Rp_per_Kg",
+    "Standard_Maintenance_Rp_per_Kg",
+)
+
 
 def _map_risk_level(series: Optional[pd.Series]) -> pd.Series:
     if series is None or series.empty:
@@ -25,6 +33,7 @@ class Dataset:
     production: Optional[pd.DataFrame] = None
     costs: Optional[pd.DataFrame] = None
     raw_material: Optional[pd.DataFrame] = None
+    standard_cost: Optional[pd.DataFrame] = None
     budget: Optional[pd.DataFrame] = None
     inventory: Optional[pd.DataFrame] = None
     risk: Optional[pd.DataFrame] = None
@@ -38,7 +47,7 @@ class Dataset:
 
     def plants(self) -> List[str]:
         for df in (self.production, self.costs, self.raw_material,
-                   self.budget, self.inventory, self.risk):
+                   self.standard_cost, self.budget, self.inventory, self.risk):
             if df is not None and "Plant" in df.columns:
                 vals = [str(v) for v in df["Plant"].dropna().unique() if str(v).strip()]
                 if vals:
@@ -59,7 +68,7 @@ class Dataset:
     def date_span(self) -> Optional[tuple]:
         dates = []
         for df in (self.production, self.costs, self.raw_material,
-                   self.budget, self.inventory, self.risk):
+                   self.standard_cost, self.budget, self.inventory, self.risk):
             if df is None:
                 continue
             for col in ("Period", "Date", "Month"):
@@ -73,7 +82,6 @@ class Dataset:
 
 
 def _derive_input_kg(production, raw_material):
-    """Turunkan Input_Kg dari Raw_Material.Qty_Kg per Date+Machine bila kosong."""
     if production is None:
         return None
     has = "Input_Kg" in production.columns and production["Input_Kg"].notna().any()
@@ -88,7 +96,6 @@ def _derive_input_kg(production, raw_material):
 
 
 def _normalize_risk(risk):
-    """Konversi teks High/Medium/Low -> 1-3 bila kolom _Val tidak ada."""
     if risk is None or risk.empty:
         return risk
     risk = risk.copy()
@@ -102,16 +109,7 @@ def _normalize_risk(risk):
 
 
 def _normalize_cost_period(df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
-    """Normalisasi sheet biaya agar siap dipakai untuk analisis bulanan.
-
-    Alur:
-      1. Kalau ada kolom `Date` (harian) dan belum ada `Period`
-         → derive `Period` = YYYY-MM dari `Date`.
-      2. Kalau kolom `Date` ada, agregasi harian → bulanan:
-         - group by: Material (kalau ada), Plant (kalau ada), Period
-         - sum: Cost / Electricity_Cost / Monthly_Dep / Qty_Kg (yang ada)
-      3. Drop kolom `Date` supaya konsisten dengan format bulanan.
-    """
+    """Normalisasi sheet biaya: derive Period dari Date + agregasi bulanan."""
     if df is None or df.empty:
         return df
 
@@ -119,15 +117,13 @@ def _normalize_cost_period(df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]
     has_date = "Date" in df.columns
     has_period = "Period" in df.columns
 
-    # 1) Derive Period dari Date kalau perlu
     if has_date and not has_period:
         dt = pd.to_datetime(df["Date"], errors="coerce")
         df["Period"] = dt.dt.strftime("%Y-%m")
 
     if "Period" not in df.columns:
-        return df  # tidak ada informasi waktu; biarkan apa adanya
+        return df
 
-    # 2) Agregasi harian → bulanan (hanya kalau ada Date)
     if has_date:
         group_cols = ["Period"]
         for col in ("Plant", "Material", "Category"):
@@ -135,15 +131,98 @@ def _normalize_cost_period(df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]
                 group_cols.append(col)
 
         agg_map = {}
-        for col in ("Cost", "Electricity_Cost", "Monthly_Dep", "Qty_Kg"):
+        for col in ("Cost", "Electricity_Cost", "Monthly_Dep", "Qty_Kg", "Qty"):
             if col in df.columns:
                 agg_map[col] = "sum"
 
         if agg_map:
             df = df.groupby(group_cols, as_index=False, dropna=False).agg(agg_map)
 
-        # Drop Date setelah agregasi (sudah tidak relevan)
         df = df.drop(columns=["Date"], errors="ignore")
+
+    return df
+
+
+def _ensure_standard_cost(df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+    """Lengkapi Standard_Cost:
+
+    - Standard_Material_Cost_Rp = Material_Qty_Kg x Material_Price_Rp
+    - Standard_Packaging_Cost_Rp = Packaging_Qty x Packaging_Price_Rp
+    - Standard_Unit_Cost_Rp = (Material_Cost + Packaging_Cost) / Output_Kg
+                              + Labor + Utility + Dep + Maint (Rp/Kg)
+    - Standard_Total_Rp = Material_Cost + Packaging_Cost
+                          + (Labor+Utility+Dep+Maint) x Output_Kg
+    """
+    if df is None or df.empty:
+        return df
+    df = df.copy()
+
+    # Material cost
+    m_qty = pd.to_numeric(df.get("Standard_Material_Qty_Kg"), errors="coerce")
+    m_prc = pd.to_numeric(df.get("Standard_Material_Price_Rp"), errors="coerce")
+    if m_qty is not None and m_prc is not None:
+        calc = m_qty * m_prc
+        if "Standard_Material_Cost_Rp" not in df.columns:
+            df["Standard_Material_Cost_Rp"] = calc
+        else:
+            cur = pd.to_numeric(df["Standard_Material_Cost_Rp"], errors="coerce")
+            miss = cur.isna() | (cur == 0)
+            if miss.any():
+                df.loc[miss, "Standard_Material_Cost_Rp"] = calc[miss]
+
+    # Packaging cost
+    p_qty = pd.to_numeric(df.get("Standard_Packaging_Qty"), errors="coerce")
+    p_prc = pd.to_numeric(df.get("Standard_Packaging_Price_Rp"), errors="coerce")
+    if p_qty is not None and p_prc is not None:
+        calc = p_qty * p_prc
+        if "Standard_Packaging_Cost_Rp" not in df.columns:
+            df["Standard_Packaging_Cost_Rp"] = calc
+        else:
+            cur = pd.to_numeric(df["Standard_Packaging_Cost_Rp"], errors="coerce")
+            miss = cur.isna() | (cur == 0)
+            if miss.any():
+                df.loc[miss, "Standard_Packaging_Cost_Rp"] = calc[miss]
+
+    # Rp/Kg parts
+    rp_per_kg = pd.Series(0.0, index=df.index)
+    for c in STD_RP_PER_KG_COLS:
+        if c in df.columns:
+            rp_per_kg = rp_per_kg.add(
+                pd.to_numeric(df[c], errors="coerce").fillna(0), fill_value=0
+            )
+
+    # Output_Kg standard
+    out = pd.to_numeric(df.get("Standard_Output_Kg"), errors="coerce")
+
+    # Unit cost = (Material_Cost + Packaging_Cost)/Output + rp_per_kg
+    mat_cost = pd.to_numeric(df.get("Standard_Material_Cost_Rp"), errors="coerce").fillna(0)
+    pkg_cost = pd.to_numeric(df.get("Standard_Packaging_Cost_Rp"), errors="coerce").fillna(0)
+    per_kg_from_variable = pd.Series(0.0, index=df.index)
+    if out is not None:
+        mask = out > 0
+        per_kg_from_variable.loc[mask] = (mat_cost[mask] + pkg_cost[mask]) / out[mask]
+
+    unit_cost_calc = per_kg_from_variable + rp_per_kg
+
+    if "Standard_Unit_Cost_Rp" not in df.columns:
+        df["Standard_Unit_Cost_Rp"] = unit_cost_calc
+    else:
+        cur = pd.to_numeric(df["Standard_Unit_Cost_Rp"], errors="coerce")
+        miss = cur.isna() | (cur == 0)
+        if miss.any():
+            df.loc[miss, "Standard_Unit_Cost_Rp"] = unit_cost_calc[miss]
+
+    # Total = Material + Packaging + (Labor+Utility+Dep+Maint) x Output
+    total_calc = mat_cost + pkg_cost
+    if out is not None:
+        total_calc = total_calc + rp_per_kg * out.fillna(0)
+    if "Standard_Total_Rp" not in df.columns:
+        df["Standard_Total_Rp"] = total_calc
+    else:
+        cur = pd.to_numeric(df["Standard_Total_Rp"], errors="coerce")
+        miss = cur.isna() | (cur == 0)
+        if miss.any():
+            df.loc[miss, "Standard_Total_Rp"] = total_calc[miss]
 
     return df
 
@@ -171,10 +250,14 @@ def load_dataset(connector: DataConnector, is_demo: bool = False,
     if report.blocking:
         return Dataset(report=report, is_demo=is_demo)
 
-    # ==== NORMALISASI SHEET BIAYA (harian → bulanan) ====
+    # ==== Normalisasi sheet biaya: harian -> bulanan ====
     for sheet_name, _col, _cat in COST_SHEETS:
         if sheet_name in clean:
             clean[sheet_name] = _normalize_cost_period(clean[sheet_name])
+
+    # Standard_Cost: lengkapi cost & total kalau kosong
+    if "Standard_Cost" in clean:
+        clean["Standard_Cost"] = _ensure_standard_cost(clean["Standard_Cost"])
 
     raw_material = clean.get("Raw_Material")
     production = _derive_input_kg(clean.get("Production"), raw_material)
@@ -199,6 +282,7 @@ def load_dataset(connector: DataConnector, is_demo: bool = False,
         production=production,
         costs=costs,
         raw_material=raw_material,
+        standard_cost=clean.get("Standard_Cost"),
         budget=clean.get("Budget"),
         inventory=clean.get("Inventory"),
         risk=risk,
