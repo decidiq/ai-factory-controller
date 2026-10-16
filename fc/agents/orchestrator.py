@@ -12,15 +12,27 @@ ROUTING_RULES = [
         r"\breorder\b", r"\bdead stock\b", r"\bslow moving\b",
         r"\bstock[- ]?out\b", r"\bgudang\b",
     ]),
+    ("maintenance", [
+        r"\bmaintenance\b", r"\bmesin\b", r"\bdown(t)?ime\b",
+        r"\bpreventive\b", r"\bservis\b", r"\bperbaikan\b",
+        r"\bkerusakan\b", r"\bmtbf\b", r"\bmtbr\b",
+    ]),
+    ("quality", [
+        r"\bkualitas\b", r"\bquality\b", r"\bscrap\b", r"\bdefect\b",
+        r"\breject\b", r"\bcacat\b", r"\bqc\b", r"\byield\b",
+    ]),
+    ("risk", [
+        r"\brisiko\b", r"\brisk\b", r"\bmitigasi\b", r"\bancaman\b",
+        r"\bprobabilitas\b", r"\bdampak\b", r"\bregister\b",
+    ]),
     ("cost", [
         r"\bbiaya\b", r"\bcost\b", r"\bcogm\b", r"\bhemat\b",
         r"\bvariance\b", r"\banggaran\b", r"\bbudget\b",
         r"\brp\b", r"\bmargin\b", r"\befisiensi\b",
     ]),
     ("production", [
-        r"\bproduksi\b", r"\boutput\b", r"\byield\b", r"\bscrap\b",
-        r"\boee\b", r"\bforecast\b", r"\banomali\b", r"\bmesin\b",
-        r"\bline\b", r"\bthroughput\b", r"\bdowntime\b",
+        r"\bproduksi\b", r"\boutput\b", r"\boee\b", r"\bforecast\b",
+        r"\banomali\b", r"\bline\b", r"\bthroughput\b",
     ]),
     ("executive", [
         r"\bringkas", r"\bbriefing\b", r"\bexecutive\b", r"\bdirektur\b",

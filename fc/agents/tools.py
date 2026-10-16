@@ -120,6 +120,103 @@ def tool_generate_recommendations(ds, scope, **_) -> Dict[str, Any]:
         return _fail(str(e))
 
 
+# ==================== MAINTENANCE ====================
+def tool_maintenance_signals(ds, scope, **_) -> Dict[str, Any]:
+    """Deteksi sinyal maintenance: downtime tinggi, top mesin bermasalah."""
+    try:
+        from fc.kpi import summarize, scope_production
+        prod = scope_production(ds.production, scope) if ds.production is not None else None
+        if prod is None or prod.empty:
+            return _fail("data produksi kosong")
+
+        lines = []
+        if "Downtime_Min" in prod.columns:
+            total_dt = float(prod["Downtime_Min"].sum())
+            avg_dt = float(prod["Downtime_Min"].mean())
+            lines.append(f"- Total downtime: {total_dt:.0f} menit")
+            lines.append(f"- Rata-rata downtime/entri: {avg_dt:.1f} menit")
+
+            if "Machine" in prod.columns:
+                top = (prod.groupby("Machine")["Downtime_Min"]
+                       .sum().sort_values(ascending=False).head(3))
+                lines.append("- Top 3 mesin downtime:")
+                for m, v in top.items():
+                    lines.append(f"  • {m}: {float(v):.0f} menit")
+
+        s = summarize(ds, scope)
+        oee = getattr(s, "oee_kpi", None)
+        if oee is not None:
+            lines.append(f"- OEE: {getattr(oee, 'value', '?')} "
+                         f"{getattr(oee, 'note', '')}")
+
+        return _ok("\n".join(lines) or "(tidak ada sinyal)", raw=s)
+    except Exception as e:
+        return _fail(str(e))
+
+
+# ==================== QUALITY ====================
+def tool_quality_signals(ds, scope, **_) -> Dict[str, Any]:
+    """Deteksi sinyal kualitas: yield, scrap, top produk bermasalah."""
+    try:
+        from fc.kpi import summarize, scope_production
+        prod = scope_production(ds.production, scope) if ds.production is not None else None
+        if prod is None or prod.empty:
+            return _fail("data produksi kosong")
+
+        s = summarize(ds, scope)
+        lines = []
+        y = getattr(s, "yield_kpi", None)
+        sc = getattr(s, "scrap_kpi", None)
+        if y is not None:
+            lines.append(f"- Yield: {getattr(y, 'value', '?')} "
+                         f"{getattr(y, 'note', '')}")
+        if sc is not None:
+            lines.append(f"- Scrap: {getattr(sc, 'value', '?')} "
+                         f"{getattr(sc, 'note', '')}")
+
+        if "Product" in prod.columns and "Scrap_Kg" in prod.columns:
+            top = (prod.groupby("Product")["Scrap_Kg"]
+                   .sum().sort_values(ascending=False).head(3))
+            lines.append("- Top 3 produk scrap:")
+            for p, v in top.items():
+                lines.append(f"  • {p}: {float(v):.0f} Kg")
+
+        return _ok("\n".join(lines) or "(tidak ada sinyal)", raw=s)
+    except Exception as e:
+        return _fail(str(e))
+
+
+# ==================== RISK REGISTER ====================
+def tool_risk_register(ds, scope, **_) -> Dict[str, Any]:
+    """Ambil risk register, urutkan berdasarkan skor P×I."""
+    try:
+        risk = ds.risk
+        if risk is None or risk.empty:
+            return _fail("data risk register kosong")
+
+        rows = []
+        for _, r in risk.iterrows():
+            title = str(r.get("Risk", "?"))
+            prob = r.get("Probability_Val", 0)
+            imp = r.get("Impact_Val", 0)
+            status = str(r.get("Status", "?"))
+            try:
+                score = int(prob) * int(imp)
+            except (ValueError, TypeError):
+                score = 0
+            rows.append((score, title, prob, imp, status))
+
+        rows.sort(key=lambda x: x[0], reverse=True)
+        lines = []
+        for score, title, prob, imp, status in rows[:8]:
+            lines.append(f"- [{status}] {title} "
+                         f"(P={prob}, I={imp}, skor={score})")
+
+        return _ok("\n".join(lines) or "(tidak ada risiko)", raw=risk)
+    except Exception as e:
+        return _fail(str(e))
+
+
 # ==================== REGISTRY ====================
 TOOLS: Dict[str, Dict[str, Any]] = {
     "kpi_summary": {
@@ -145,6 +242,18 @@ TOOLS: Dict[str, Dict[str, Any]] = {
     "recommendations": {
         "fn": tool_generate_recommendations,
         "desc": "Rekomendasi dari engine Fase 4",
+    },
+    "maintenance_signals": {
+        "fn": tool_maintenance_signals,
+        "desc": "Downtime + top mesin bermasalah",
+    },
+    "quality_signals": {
+        "fn": tool_quality_signals,
+        "desc": "Yield + scrap + top produk bermasalah",
+    },
+    "risk_register": {
+        "fn": tool_risk_register,
+        "desc": "Risk register diurutkan by skor P×I",
     },
 }
 

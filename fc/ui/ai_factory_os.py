@@ -99,7 +99,7 @@ QUICK_PROMPTS = {
         "Keputusan apa yang perlu saya ambil?",
     ],
     "production": [
-        "Bagaimana yield dan OEE bulan ini?",
+        "Bagaimana OEE bulan ini?",
         "Ada anomali di data produksi?",
         "Forecast output 7 hari ke depan",
     ],
@@ -112,6 +112,21 @@ QUICK_PROMPTS = {
         "Berapa COGM bulan ini?",
         "Di mana peluang penghematan biaya?",
         "Analisis variance biaya produksi",
+    ],
+    "maintenance": [
+        "Bagaimana kondisi mesin minggu ini?",
+        "Mesin mana yang perlu preventive?",
+        "Analisis downtime produksi",
+    ],
+    "quality": [
+        "Bagaimana kualitas produk minggu ini?",
+        "Produk mana yang scrap-nya tinggi?",
+        "Analisis yield dan defect",
+    ],
+    "risk": [
+        "Apa risiko terbesar saat ini?",
+        "Bagaimana mitigasi risiko material?",
+        "Prioritas risiko minggu ini",
     ],
     "auto": [
         "Ringkas kondisi pabrik minggu ini",
@@ -234,6 +249,7 @@ def _render_history():
             st.caption(h["task"])
             st.markdown("---")
 
+
 def _render_memory_panel():
     """Panel memory: stats + tombol clear."""
     st_stats = agent_memory.stats()
@@ -280,6 +296,7 @@ def _render_memory_panel():
                 st.warning(f"⚠️ {n} run dihapus")
                 st.rerun()
 
+
 def render(ds, scope) -> None:
     _inject_css()
     _ensure_state()
@@ -288,7 +305,6 @@ def render(ds, scope) -> None:
     _render_memory_panel()
 
     choice = _render_sidebar()
-    
     _render_prompts(choice)
 
     st.markdown("---")

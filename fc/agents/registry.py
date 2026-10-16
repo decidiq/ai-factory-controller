@@ -6,6 +6,9 @@ from .production import ProductionAgent
 from .inventory import InventoryAgent
 from .cost import CostAgent
 from .executive import ExecutiveAgent
+from .maintenance import MaintenanceAgent
+from .quality import QualityAgent
+from .risk import RiskAgent
 
 
 AGENTS: Dict[str, Type[BaseAgent]] = {
@@ -13,6 +16,9 @@ AGENTS: Dict[str, Type[BaseAgent]] = {
     "inventory": InventoryAgent,
     "cost": CostAgent,
     "executive": ExecutiveAgent,
+    "maintenance": MaintenanceAgent,
+    "quality": QualityAgent,
+    "risk": RiskAgent,
 }
 
 
