@@ -192,8 +192,8 @@ def _render_header():
         )
 
 
-def _render_sidebar():
-    st.sidebar.markdown("### 🤖 Pilih Agent")
+def _render_agent_selector():
+    st.markdown("### 🤖 Pilih Agent")
     
     # Ambil role & filter agent sesuai izin
     role = get_current_role()
@@ -215,33 +215,29 @@ def _render_sidebar():
         labels[a["name"]] = f"• {a['role']}"
 
     if not options:
-        st.sidebar.warning("Role Anda tidak memiliki akses ke agent apapun.")
+        st.warning("Role Anda tidak memiliki akses ke agent apapun.")
         return "auto"
 
     # Set default pilihan jika belum ada atau tidak valid
     if "_agents_choice" not in st.session_state or st.session_state["_agents_choice"] not in options:
         st.session_state["_agents_choice"] = options[0]
 
-    choice = st.sidebar.radio(
+    # Gunakan st.radio horizontal (bukan sidebar)
+    choice = st.radio(
         "Agent",
         options,
         format_func=lambda x: labels.get(x, x),
+        horizontal=True,
+        label_visibility="collapsed",
         key="_agents_choice",
     )
 
     if choice != "auto":
         meta = next((a for a in agents if a["name"] == choice), None)
         if meta:
-            st.sidebar.caption(meta["description"])
-            st.sidebar.caption(
-                "🔧 Tools: " + ", ".join(f"`{t}`" for t in meta["tools"])
-            )
-            
-    # Tampilkan info role di sidebar
-    st.sidebar.caption(f"🔒 Akses: **{role}**")
+            st.info(f"**{meta['description']}**\n\n🔧 Tools: " + ", ".join(f"`{t}`" for t in meta["tools"]))
     
     return choice
-
 
 def _render_prompts(choice: str):
     prompts = QUICK_PROMPTS.get(choice, QUICK_PROMPTS["auto"])
@@ -444,7 +440,8 @@ def render(ds, scope) -> None:
 
     _render_memory_panel()
 
-    choice = _render_sidebar()
+    choice = _render_agent_selector()
+    st.markdown("---")
     _render_prompts(choice)
 
     st.markdown("---")

@@ -168,15 +168,17 @@ def _render_header():
         )
 
 
-def _render_sidebar():
-    st.sidebar.markdown("### 🤝 Mode Kolaborasi")
-    mode = st.sidebar.radio(
+def _render_mode_selector():
+    st.markdown("### 🤝 Mode Kolaborasi")
+    
+    mode = st.radio(
         "Mode",
         ["auto", "manual"],
         format_func=lambda x: {
             "auto": "🪄 Auto — Executive pilih agent",
             "manual": "🎯 Manual — Saya pilih agent",
         }[x],
+        horizontal=True,
         key="_collab_mode",
     )
 
@@ -184,7 +186,7 @@ def _render_sidebar():
     if mode == "manual":
         agents = list_agents()
         options = {a["name"]: f"{a['role']}" for a in agents}
-        selected = st.sidebar.multiselect(
+        selected = st.multiselect(
             "Pilih agent (2-4 disarankan)",
             options=list(options.keys()),
             default=["production", "inventory", "cost"],
@@ -192,12 +194,8 @@ def _render_sidebar():
             key="_collab_selected",
         )
 
-    st.sidebar.caption(
-        "💡 Auto: keyword task → pilih agent yang relevan. "
-        "Manual: kontrol penuh."
-    )
+    st.caption("💡 Auto: keyword task → pilih agent yang relevan. Manual: kontrol penuh.")
     return mode, selected
-
 
 def _render_prompts():
     st.markdown("**💡 Quick prompts**")
@@ -368,7 +366,8 @@ def render(ds, scope) -> None:
     _ensure_state()
     _render_header()
 
-    mode, selected = _render_sidebar()
+    mode, selected = _render_mode_selector()
+    st.markdown("---")
     _render_prompts()
 
     st.markdown("---")
