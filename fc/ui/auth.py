@@ -18,6 +18,7 @@ ROLE_MENUS = {
             "Multi-Plant & Cost Allocation",
         ],
         "🎯 DECISION SUPPORT": ["Recommendations", "Memory", "AI Copilot"],
+        "⚡ AI FACTORY OS": ["AI Factory OS (Phase 5)", "Multi-Agent Collaboration"],
         "⚙️ SYSTEM": ["Audit Trail", "Settings"],
     },
     "Factory Manager / Plant Controller": {
@@ -32,11 +33,24 @@ ROLE_MENUS = {
             "Inventory Analysis", "Risk Register",
         ],
         "🎯 DECISION SUPPORT": ["Recommendations", "Memory", "AI Copilot"],
+        "⚡ AI FACTORY OS": ["AI Factory OS (Phase 5)", "Multi-Agent Collaboration"],
         "⚙️ SYSTEM": ["Audit Trail", "Settings"],
-        "🚧 COMING SOON": [
-            "Multi-Agent Collaboration", "AI Factory OS (Phase 5)",
-        ],
     },
+    "Operator": {
+        "📊 OVERVIEW": ["Dashboard", "Kualitas Data"],
+        "🏭 OPERATIONS": ["Production Analysis", "Inventory Analysis"],
+        "⚡ AI FACTORY OS": ["AI Factory OS (Phase 5)"],
+    },
+}
+
+# ==================== ROLE-BASED AGENT ACCESS (Fase 5E) ====================
+ROLE_AGENTS = {
+    "Director / GM": ["executive"],
+    "Factory Manager / Plant Controller": [
+        "production", "inventory", "cost", "executive", 
+        "maintenance", "quality", "risk", "auto"
+    ],
+    "Operator": ["production", "maintenance", "quality", "auto"],
 }
 
 # ==================== DEV: SHOW ALL MENUS ====================
@@ -67,7 +81,7 @@ ICON_MAP = {
     "Predictive Analytics": "📈", "Inventory Analysis": "📦",
     "Risk Register": "⚠️", "Recommendations": "💡", "Memory": "🧠",
     "AI Copilot": "🤖", "Audit Trail": "📜", "Settings": "⚙️",
-    "Multi-Agent Collaboration": "🤝", "AI Factory OS (Phase 5)": "🏗️",
+    "Multi-Agent Collaboration": "🤝", "AI Factory OS (Phase 5)": "⚡",
 }
 
 
@@ -561,71 +575,22 @@ def logout() -> None:
     st.session_state.clear()
     st.rerun()
 
-# ==================== ROLE-BASED ACCESS (FASE 5E) ====================
-
-# Mapping role ke kategori -> menu (Sesuai dengan loop di app.py)
-ROLE_MENUS = {
-    "Director": {
-        "OVERVIEW": ["Dashboard", "Executive Report", "Institutional Memory"],
-        "AI FACTORY OS": ["AI Factory OS", "Multi-Agent Collaboration"],
-    },
-    "Factory Manager": {
-        "OVERVIEW": ["Dashboard", "Kualitas Data", "Audit Trail"],
-        "COST INTELLIGENCE": ["Cost DNA", "What-If Simulator", "Recommendations", "Cost Analysis", "Manufacturing Variance"],
-        "OPERATIONS": ["Production Analysis", "Multi-Plant & Cost Allocation", "Inventory Analysis", "Risk Register", "Predictive Analytics"],
-        "DECISION SUPPORT": ["Executive Report", "Institutional Memory"],
-        "AI FACTORY OS": ["AI Factory OS", "Multi-Agent Collaboration"],
-    },
-    "Operator": {
-        "OVERVIEW": ["Dashboard", "Kualitas Data"],
-        "OPERATIONS": ["Production Analysis", "Inventory Analysis"],
-        "AI FACTORY OS": ["AI Factory OS"],
-    },
-}
-
-# Mapping role ke agent yang bisa dipanggil di AI Factory OS
-ROLE_AGENTS = {
-    "Director": ["executive"],
-    "Factory Manager": ["production", "inventory", "cost", "executive", "maintenance", "quality", "risk", "auto"],
-    "Operator": ["production", "maintenance", "quality", "auto"],
-}
-
-# Icon mapping untuk menu sidebar
-ICON_MAP = {
-    "Dashboard": "📊",
-    "Kualitas Data": "✅",
-    "Audit Trail": "🛡️",
-    "Cost DNA": "🧬",
-    "What-If Simulator": "🎛️",
-    "Recommendations": "💡",
-    "Production Analysis": "🏭",
-    "Cost Analysis": "💰",
-    "Multi-Plant & Cost Allocation": "🏢",
-    "Manufacturing Variance": "📉",
-    "Inventory Analysis": "📦",
-    "Risk Register": "⚠️",
-    "Predictive Analytics": "🔮",
-    "Executive Report": "📋",
-    "Institutional Memory": "🧠",
-    "Multi-Agent Collaboration": "🤝",
-    "AI Factory OS": "⚡",
-}
+# ==================== ROLE-BASED ACCESS HELPERS ====================
 
 def get_current_role() -> str:
-    """Ambil role user dari session state. Fallback: 'Factory Manager'."""
-    import streamlit as st
+    """Ambil role user dari session state. Fallback: 'Factory Manager / Plant Controller'."""
     user = st.session_state.get("user") or st.session_state.get("_user")
     if isinstance(user, dict):
-        return user.get("role", "Factory Manager")
+        return user.get("role", "Factory Manager / Plant Controller")
     role = st.session_state.get("role")
     if role:
         return str(role)
-    return "Factory Manager"
+    return "Factory Manager / Plant Controller"
 
 def get_allowed_menus(role: str) -> dict:
     """Return nested dict menu yang diizinkan untuk role tertentu."""
-    return ROLE_MENUS.get(role, ROLE_MENUS["Factory Manager"])
+    return ROLE_MENUS.get(role, ROLE_MENUS["Factory Manager / Plant Controller"])
 
 def get_allowed_agents(role: str) -> list:
     """Return list agent yang diizinkan untuk role tertentu."""
-    return ROLE_AGENTS.get(role, ROLE_AGENTS["Factory Manager"])
+    return ROLE_AGENTS.get(role, ROLE_AGENTS["Factory Manager / Plant Controller"])

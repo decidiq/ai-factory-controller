@@ -143,7 +143,7 @@ username = st.session_state["username"]
 # ==================== SIDEBAR — USER PROFILE ====================
 initial = (username or "U").strip()[0].upper()
 role_short = ("Director" if "Director" in role else
-              "Manager" if "Manager" in role else "User")
+              "Manager" if "Manager" in role else "Operator")
 
 st.sidebar.markdown(f"""
 <div class="sb-user-card">
@@ -373,7 +373,7 @@ with sa2.track(events_path=_ANALYTICS_DB, verbose=False):
         ai_copilot.render(ds, scope)
     elif menu == "Multi-Agent Collaboration":
         multi_agent_collaboration.render(ds, scope)
-    elif menu == "AI Factory OS":
+    elif menu == "AI Factory OS (Phase 5)":
         ai_factory_os.render(ds, scope)
     elif menu == "Settings":
         settings.render(ds, scope)
