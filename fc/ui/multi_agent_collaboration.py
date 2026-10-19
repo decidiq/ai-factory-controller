@@ -16,6 +16,7 @@ from fc.agents import (
     agent_memory,
     hitl,
 )
+from fc.report.pdf_export import generate_ai_pdf
 
 CSS = """
 <style>
@@ -407,7 +408,26 @@ def render(ds, scope) -> None:
             
         _render_agent_results(result)
 
-        # Panel approval HITL (untuk sintesis)
+        # ==================== TOMBOL DOWNLOAD PDF ====================
+        st.markdown("---")
+        pdf_bytes = generate_ai_pdf(
+            agent_name=" + ".join(result.agents_run),
+            task=task,
+            content=result.synthesis or "Sintesis belum tersedia.",
+            confidence=result.avg_confidence,
+            duration_ms=result.total_duration_ms,
+            tools_used=["multi-agent-synthesis"],
+            multi_agent_data=result.agent_results
+        )
+        st.download_button(
+            label="📄 Download Laporan Kolaborasi (PDF)",
+            data=pdf_bytes,
+            file_name=f"decidiq_collab_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+            mime="application/pdf",
+            type="secondary",
+            use_container_width=True
+        )
+
         st.markdown("---")
         _render_approval_synthesis(result)
 

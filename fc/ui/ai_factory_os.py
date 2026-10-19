@@ -18,6 +18,7 @@ from fc.agents.base import AgentResult
 from fc.agents import memory as agent_memory
 from fc.agents import hitl
 from fc.ui.auth import get_current_role, get_allowed_agents
+from fc.report.pdf_export import generate_ai_pdf
 
 
 CSS = """
@@ -455,6 +456,25 @@ def render(ds, scope) -> None:
                 "confidence": result.confidence,
                 "duration_ms": result.duration_ms,
             })
+
+            # ==================== TOMBOL DOWNLOAD PDF ====================
+            st.markdown("---")
+            pdf_bytes = generate_ai_pdf(
+                agent_name=result.agent,
+                task=task,
+                content=result.content,
+                confidence=result.confidence,
+                duration_ms=result.duration_ms,
+                tools_used=result.source_tools
+            )
+            st.download_button(
+                label="📄 Download Hasil Analisis (PDF)",
+                data=pdf_bytes,
+                file_name=f"decidiq_ai_{result.agent}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf",
+                type="secondary",
+                use_container_width=True
+            )
 
             st.markdown("---")
             _render_approval_panel(result, task)

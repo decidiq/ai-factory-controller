@@ -1,6 +1,7 @@
-"""Ekspor Executive Report ke PDF (BRD 2.5)."""
+"""Ekspor Executive Report & AI Analysis ke PDF."""
 from datetime import datetime
 from typing import Optional
+from io import BytesIO
 
 from fpdf import FPDF
 
@@ -100,14 +101,7 @@ def _fmt(kpi, fmt: str) -> str:
 def generate_pdf(ds: Dataset, scope: Scope,
                  output_path: Optional[str] = None,
                  targets=None) -> str:
-    """Buat PDF Executive Report. Return path file.
-
-    Args:
-        ds: Dataset
-        scope: Scope filter
-        output_path: Optional path output
-        targets: Targets KPI — kalau None pakai DEFAULT dari config
-    """
+    """Buat PDF Executive Report. Return path file."""
     if targets is None:
         from ..config import TARGETS as DEFAULT_TARGETS
         targets = DEFAULT_TARGETS
@@ -325,3 +319,61 @@ def generate_pdf(ds: Dataset, scope: Scope,
 
     pdf.output(output_path)
     return output_path
+
+
+# ==================== AI FACTORY OS PDF EXPORT ====================
+
+def generate_ai_pdf(
+    agent_name: str,
+    task: str,
+    content: str,
+    confidence: int = 0,
+    duration_ms: int = 0,
+    tools_used: list = None,
+    multi_agent_data: dict = None
+) -> bytes:
+    """Generate PDF dari hasil AI Agent. Return bytes."""
+    pdf = ReportPDF()
+    pdf.add_page()
+
+    # Title
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_text_color(30, 58, 138)
+    pdf.cell(0, 10, "Decidiq AI Factory Report", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(5)
+
+    # Meta
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(60, 60, 60)
+    pdf.cell(0, 6, _safe(f"Generated on: {datetime.now().strftime('%d %B %Y, %H:%M')}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, _safe(f"Agent(s): {agent_name}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, _safe(f"Confidence: {confidence}% | Duration: {duration_ms} ms"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, _safe(f"Tools Used: {', '.join(tools_used) if tools_used else '-'}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(5)
+
+    # Task
+    pdf.chapter_title("Task / Query")
+    pdf.body_text(task)
+    pdf.ln(3)
+
+    # AI Analysis Result
+    pdf.chapter_title("AI Analysis Result")
+    # Strip markdown bold for fpdf
+    clean_content = content.replace("**", "")
+    pdf.body_text(clean_content)
+    pdf.ln(5)
+
+    # Multi-agent data
+    if multi_agent_data:
+        pdf.add_page()
+        pdf.chapter_title("Agent Perspectives")
+        for agent, result in multi_agent_data.items():
+            pdf.subtitle(agent.upper())
+            agent_content = result.content.replace("**", "")
+            pdf.body_text(agent_content)
+            pdf.ln(2)
+
+    buf = BytesIO()
+    pdf.output(buf)
+    buf.seek(0)
+    return buf.read()
