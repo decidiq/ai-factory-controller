@@ -1,5 +1,6 @@
 """Tool registry — wrap fungsi existing dari fc.kpi / fc.intel.*"""
 from typing import Any, Dict
+import dataclasses
 
 
 def _ok(text: str, raw: Any = None) -> Dict[str, Any]:
@@ -75,16 +76,40 @@ def tool_stockout_risk(ds, scope, **_) -> Dict[str, Any]:
         inv = ds.inventory
         if inv is None or inv.empty:
             return _fail("data inventory kosong")
+        
         risks = predict_stockout(inv)
         lines = []
         for r in (risks or [])[:5]:
-            lines.append(f"- {getattr(r, 'material', '?')}: "
-                         f"{getattr(r, 'days_left', '?')} hari "
-                         f"(severity {getattr(r, 'severity', '?')})")
+            # Ubah objek menjadi dictionary secara aman
+            if dataclasses.is_dataclass(r):
+                d = dataclasses.asdict(r)
+            elif isinstance(r, dict):
+                d = r
+            else:
+                d = getattr(r, "__dict__", {})
+
+            # Cari nama material
+            mat = next((v for k, v in d.items() if "mat" in k.lower() or "name" in k.lower()), None)
+            if mat is None:
+                mat = str(r)
+                
+            # Cari jumlah hari & bulatkan 1 desimal
+            days = next((v for k, v in d.items() if "day" in k.lower()), None)
+            if days is not None and isinstance(days, (int, float)):
+                days_str = f"{days:.1f}"
+            else:
+                days_str = str(days) if days is not None else "?"
+            
+            # Cari status/severity (mencoba berbagai kemungkinan nama key)
+            sev = d.get("status") or d.get("risk") or d.get("category") or d.get("urgency") or d.get("level")
+            if sev is None:
+                sev = next((v for k, v in d.items() if "sev" in k.lower() or "stat" in k.lower() or "risk" in k.lower()), "?")
+
+            lines.append(f"- {mat}: {days_str} hari (status {sev})")
+            
         return _ok("\n".join(lines) or "(tidak ada risiko)", raw=risks)
     except Exception as e:
         return _fail(str(e))
-
 
 # ==================== COST DNA ====================
 def tool_cost_variance(ds, scope, **_) -> Dict[str, Any]:

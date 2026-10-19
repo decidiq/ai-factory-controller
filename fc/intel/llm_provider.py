@@ -46,15 +46,17 @@ class GroqProvider(LLMProvider):
 
     def _build_messages(self, question: str, context: str, history: Optional[List[Dict]]):
         system_prompt = (
-            "Anda adalah Decidiq AI Copilot, asisten analitik untuk pabrik "
-            "manufaktur.\n\n"
-            f"DATA KONTEKS (dari sistem Decidiq):\n{context}\n\n"
+            "Anda adalah Decidiq AI Copilot, asisten analitik untuk pabrik manufaktur.\n\n"
+            f"DATA KONTEKS:\n{context}\n\n"
             "ATURAN:\n"
-            "1. Jawab dalam Bahasa Indonesia yang profesional tapi ramah.\n"
-            "2. Selalu berdasarkan data di atas — JANGAN mengarang angka.\n"
-            "3. Kalau data tidak ada, katakan 'data tidak tersedia'.\n"
-            "4. Jawaban singkat, padat, fokus ke insight & rekomendasi.\n"
-            "5. Kalau relevan, sebutkan dampak Rp atau rekomendasi aksi.\n"
+            "1. Jawab dalam Bahasa Indonesia profesional.\n"
+            "2. Berdasarkan data di atas — JANGAN mengarang angka.\n"
+            "3. Kalau data kosong, katakan 'data tidak tersedia'.\n"
+            "4. Format WAJIB: **Ringkasan** → **Temuan** → **Rekomendasi**.\n"
+            "5. Sebutkan dampak Rp jika relevan.\n"
+            "6. DILARANG KERAS menggunakan tag HTML (seperti <table>, <br>, <b>, <ul>).\n"
+            "   Gunakan HANYA format Markdown murni. Untuk tabel gunakan pipa (|), "
+            "untuk baris baru gunakan enter (newline), untuk bold gunakan **.\n"
         )
         messages = [{"role": "system", "content": system_prompt}]
         if history:
@@ -67,7 +69,7 @@ class GroqProvider(LLMProvider):
         client = OpenAI(api_key=self.api_key, base_url=self.BASE_URL)
         messages = self._build_messages(question, context, history)
         response = client.chat.completions.create(
-            model=self.MODEL, messages=messages, temperature=0.3, max_tokens=800, timeout=15,
+            model=self.MODEL, messages=messages, temperature=0.3, max_tokens=4000, timeout=30,
         )
         return response.choices[0].message.content
 
@@ -76,7 +78,7 @@ class GroqProvider(LLMProvider):
         client = OpenAI(api_key=self.api_key, base_url=self.BASE_URL)
         messages = self._build_messages(question, context, history)
         stream = client.chat.completions.create(
-            model=self.MODEL, messages=messages, temperature=0.3, max_tokens=800, timeout=15, stream=True,
+            model=self.MODEL, messages=messages, temperature=0.3, max_tokens=4000, timeout=30, stream=True,
         )
         for chunk in stream:
             content = chunk.choices[0].delta.content
@@ -107,15 +109,17 @@ class DeepSeekProvider(LLMProvider):
 
     def _build_messages(self, question: str, context: str, history: Optional[List[Dict]]):
         system_prompt = (
-            "Anda adalah Decidiq AI Copilot, asisten analitik untuk pabrik "
-            "manufaktur.\n\n"
-            f"DATA KONTEKS (dari sistem Decidiq):\n{context}\n\n"
+            "Anda adalah Decidiq AI Copilot, asisten analitik untuk pabrik manufaktur.\n\n"
+            f"DATA KONTEKS:\n{context}\n\n"
             "ATURAN:\n"
-            "1. Jawab dalam Bahasa Indonesia yang profesional tapi ramah.\n"
-            "2. Selalu berdasarkan data di atas — JANGAN mengarang angka.\n"
-            "3. Kalau data tidak ada, katakan 'data tidak tersedia'.\n"
-            "4. Jawaban singkat, padat, fokus ke insight & rekomendasi.\n"
-            "5. Kalau relevan, sebutkan dampak Rp atau rekomendasi aksi.\n"
+            "1. Jawab dalam Bahasa Indonesia profesional.\n"
+            "2. Berdasarkan data di atas — JANGAN mengarang angka.\n"
+            "3. Kalau data kosong, katakan 'data tidak tersedia'.\n"
+            "4. Format WAJIB: **Ringkasan** → **Temuan** → **Rekomendasi**.\n"
+            "5. Sebutkan dampak Rp jika relevan.\n"
+            "6. DILARANG KERAS menggunakan tag HTML (seperti <table>, <br>, <b>, <ul>).\n"
+            "   Gunakan HANYA format Markdown murni. Untuk tabel gunakan pipa (|), "
+            "untuk baris baru gunakan enter (newline), untuk bold gunakan **.\n"
         )
         messages = [{"role": "system", "content": system_prompt}]
         if history:
@@ -128,7 +132,7 @@ class DeepSeekProvider(LLMProvider):
         client = OpenAI(api_key=self.api_key, base_url=self.BASE_URL)
         messages = self._build_messages(question, context, history)
         response = client.chat.completions.create(
-            model=self.MODEL, messages=messages, temperature=0.3, max_tokens=800, timeout=15,
+            model=self.MODEL, messages=messages, temperature=0.3, max_tokens=4000, timeout=30,
         )
         return response.choices[0].message.content
 
@@ -137,7 +141,7 @@ class DeepSeekProvider(LLMProvider):
         client = OpenAI(api_key=self.api_key, base_url=self.BASE_URL)
         messages = self._build_messages(question, context, history)
         stream = client.chat.completions.create(
-            model=self.MODEL, messages=messages, temperature=0.3, max_tokens=800, timeout=15, stream=True,
+            model=self.MODEL, messages=messages, temperature=0.3, max_tokens=4000, timeout=30, stream=True,
         )
         for chunk in stream:
             content = chunk.choices[0].delta.content

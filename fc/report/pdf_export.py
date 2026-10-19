@@ -1,4 +1,5 @@
 """Ekspor Executive Report & AI Analysis ke PDF."""
+import re
 from datetime import datetime
 from typing import Optional
 from io import BytesIO
@@ -17,11 +18,16 @@ def _safe(text: str) -> str:
         "—": "-", "–": "-", "•": "-", "×": "x", "÷": "/",
         "−": "-",
         "≥": ">=", "≤": "<=", "±": "+/-", "→": "->",
-        "Δ": "Delta", "🔴": "[!]", "🟡": "[*]", "🔵": "[i]",
-        "✅": "[OK]", "⚠️": "[!]", "💰": "Rp",
+        "Δ": "Delta", 
+        "🔴": "[CRITICAL]", "🟡": "[WARNING]", "🔵": "[INFO]",
+        "✅": "[OK]", "⚠️": "[!]", "💰": "Rp", "🔒": "[LOCK]",
+        "🧠": "[AI]", "🤖": "[BOT]", "📄": "[DOC]", "📊": "[CHART]",
+        "⚡": "[OS]", "🤝": "[HITL]", "📈": "[UP]", "📉": "[DOWN]",
+        "🏭": "[FACTORY]", "📦": "[BOX]"
     }
     for k, v in replacements.items():
         text = text.replace(k, v)
+    # Encode ke latin-1, ganti karakter yang tidak didukung dengan '?'
     return text.encode("latin-1", "replace").decode("latin-1")
 
 
@@ -34,7 +40,7 @@ class ReportPDF(FPDF):
     def header(self):
         self.set_font("Helvetica", "B", 9)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 6, "Decidiq - Executive Report", align="L")
+        self.cell(0, 6, "Decidiq - Report", align="L")
         self.cell(0, 6, datetime.now().strftime("%d-%m-%Y %H:%M"),
                   align="R", new_x="LMARGIN", new_y="NEXT")
         self.set_draw_color(200, 200, 200)
@@ -323,6 +329,100 @@ def generate_pdf(ds: Dataset, scope: Scope,
 
 # ==================== AI FACTORY OS PDF EXPORT ====================
 
+def _clean_ai_text(text: str) -> str:
+    """Bersihkan karakter aneh dan ubah HTML tabel ke format Markdown (Pipa)."""
+    # Ubah <td> atau <th> menjadi pemisah pipa
+    text = re.sub(r'</t[dh]>', ' | ', text, flags=re.IGNORECASE)
+    # Ubah <tr> menjadi baris baru
+    text = re.sub(r'</tr>', '\n', text, flags=re.IGNORECASE)
+    # Ubah <br> menjadi spasi
+    text = re.sub(r'<br\s*/?>', ' ', text, flags=re.IGNORECASE)
+    
+    # Hapus sisa tag HTML lainnya (seperti <table>, <tbody>, <b>)
+    text = re.sub(r'<[^>]+>', '', text)
+    
+    # Decode entitas HTML umum
+    text = text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").replace("&nbsp;", " ")
+    
+    # Ganti non-breaking space dan narrow no-break space dengan spasi biasa
+    text = text.replace("\u00a0", " ").replace("\u202f", " ")
+    
+    # Hapus karakter kontrol dan zero-width space
+    return "".join(c for c in text if ord(c) < 256 or c == '\n')
+
+
+def _render_pdf_table(pdf: ReportPDF, headers: list, data: list):
+    """Render list of list menjadi tabel fpdf yang rapi."""
+    if not headers or not data:
+        return
+        
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_text_color(30, 58, 138)
+    
+    # Asumsi lebar kolom sama rata
+    col_w = 180 / len(headers)
+    
+    # Header
+    for h in headers:
+        pdf.cell(col_w, 7, _safe(h), border=1, fill=True, align="C")
+    pdf.ln()
+    
+    # Data
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(0, 0, 0)
+    
+    for row in data:
+        # Pastikan jumlah kolom sama
+        row_data = row + [""] * (len(headers) - len(row))
+        for item in row_data[:len(headers)]:
+            pdf.cell(col_w, 6, _safe(item)[:40], border=1, align="L")
+        pdf.ln()
+
+
+def _render_markdown_to_pdf(pdf: ReportPDF, content: str):
+    """Parse Markdown sederhana (Tabel & Bold) menjadi elemen fpdf."""
+    content = content.replace("**", "")
+    content = _clean_ai_text(content)
+    
+    lines = content.split("\n")
+    in_table = False
+    table_cols = []
+    table_data = []
+    
+    for line in lines:
+        line_stripped = line.strip()
+        
+        # Deteksi tabel (mengandung setidaknya 2 pipa, yang berarti minimal 3 kolom)
+        if "|" in line_stripped and line_stripped.count("|") >= 2:
+            if "---" in line_stripped:
+                continue
+            
+            cols = [c.strip() for c in line_stripped.strip("|").split("|")]
+            
+            if not in_table:
+                in_table = True
+                table_cols = cols
+                table_data = []
+            else:
+                table_data.append(cols)
+            continue
+        else:
+            if in_table:
+                _render_pdf_table(pdf, table_cols, table_data)
+                in_table = False
+                pdf.ln(3)
+            
+            if line_stripped:
+                pdf.set_font("Helvetica", "", 10)
+                pdf.set_text_color(60, 60, 60)
+                pdf.multi_cell(0, 5, line_stripped)
+                pdf.ln(1)
+
+    if in_table:
+        _render_pdf_table(pdf, table_cols, table_data)
+
+
 def generate_ai_pdf(
     agent_name: str,
     task: str,
@@ -358,9 +458,7 @@ def generate_ai_pdf(
 
     # AI Analysis Result
     pdf.chapter_title("AI Analysis Result")
-    # Strip markdown bold for fpdf
-    clean_content = content.replace("**", "")
-    pdf.body_text(clean_content)
+    _render_markdown_to_pdf(pdf, content)
     pdf.ln(5)
 
     # Multi-agent data
@@ -369,8 +467,7 @@ def generate_ai_pdf(
         pdf.chapter_title("Agent Perspectives")
         for agent, result in multi_agent_data.items():
             pdf.subtitle(agent.upper())
-            agent_content = result.content.replace("**", "")
-            pdf.body_text(agent_content)
+            _render_markdown_to_pdf(pdf, result.content)
             pdf.ln(2)
 
     buf = BytesIO()
