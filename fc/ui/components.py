@@ -674,9 +674,11 @@ def score_panel(score: float, status: str, summary: str,
         f'<section style="background:linear-gradient(110deg,#30265e,#211b47 55%,#171b3c);'
         f'border:1px solid #5e5090;border-radius:16px;padding:26px 28px;'
         f'box-shadow:0 9px 30px rgba(6,9,23,0.13);">'
-        f'<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(210px,38%);'
+        # UBAH BAGIAN INI: Dari grid menjadi flexbox
+        f'<div style="display:flex;flex-wrap:wrap;'
         f'gap:24px;align-items:center;">'
-        f'<div>'
+        # UBAH BAGIAN INI: Tambahkan flex sizing
+        f'<div style="flex:1 1 300px;min-width:0;">'
         f'<p style="font-size:0.62rem;color:#c9b9f8;font-weight:800;'
         f'letter-spacing:0.12em;text-transform:uppercase;margin:0;">OVERALL PERFORMANCE SCORE</p>'
         f'<div style="display:flex;align-items:baseline;gap:12px;margin-top:10px;">'
@@ -686,7 +688,7 @@ def score_panel(score: float, status: str, summary: str,
         f'</div>'
         f'<p style="color:#e3defa;line-height:1.55;margin-top:14px;font-size:0.85rem;">{summary}</p>'
         f'</div>'
-        f'<div>'
+        f'<div style="flex:1 1 200px;">'  
         f'<div style="display:flex;justify-content:space-between;gap:12px;'
         f'font-weight:700;margin-bottom:12px;font-size:0.78rem;color:#d6d1f7;">'
         f'<span>Performance index</span><span>{pct_val:.0f}%</span></div>'
