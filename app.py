@@ -373,7 +373,7 @@ with sa2.track(events_path=_ANALYTICS_DB, verbose=False):
         ai_copilot.render(ds, scope)
     elif menu == "Multi-Agent Collaboration":
         multi_agent_collaboration.render(ds, scope)
-    elif menu == "AI Factory OS (Phase 5)":
+    elif menu == "AI Factory OS":
         ai_factory_os.render(ds, scope)
     elif menu == "Settings":
         settings.render(ds, scope)

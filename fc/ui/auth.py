@@ -560,3 +560,72 @@ def logout() -> None:
         pass
     st.session_state.clear()
     st.rerun()
+
+# ==================== ROLE-BASED ACCESS (FASE 5E) ====================
+
+# Mapping role ke kategori -> menu (Sesuai dengan loop di app.py)
+ROLE_MENUS = {
+    "Director": {
+        "OVERVIEW": ["Dashboard", "Executive Report", "Institutional Memory"],
+        "AI FACTORY OS": ["AI Factory OS", "Multi-Agent Collaboration"],
+    },
+    "Factory Manager": {
+        "OVERVIEW": ["Dashboard", "Kualitas Data", "Audit Trail"],
+        "COST INTELLIGENCE": ["Cost DNA", "What-If Simulator", "Recommendations", "Cost Analysis", "Manufacturing Variance"],
+        "OPERATIONS": ["Production Analysis", "Multi-Plant & Cost Allocation", "Inventory Analysis", "Risk Register", "Predictive Analytics"],
+        "DECISION SUPPORT": ["Executive Report", "Institutional Memory"],
+        "AI FACTORY OS": ["AI Factory OS", "Multi-Agent Collaboration"],
+    },
+    "Operator": {
+        "OVERVIEW": ["Dashboard", "Kualitas Data"],
+        "OPERATIONS": ["Production Analysis", "Inventory Analysis"],
+        "AI FACTORY OS": ["AI Factory OS"],
+    },
+}
+
+# Mapping role ke agent yang bisa dipanggil di AI Factory OS
+ROLE_AGENTS = {
+    "Director": ["executive"],
+    "Factory Manager": ["production", "inventory", "cost", "executive", "maintenance", "quality", "risk", "auto"],
+    "Operator": ["production", "maintenance", "quality", "auto"],
+}
+
+# Icon mapping untuk menu sidebar
+ICON_MAP = {
+    "Dashboard": "📊",
+    "Kualitas Data": "✅",
+    "Audit Trail": "🛡️",
+    "Cost DNA": "🧬",
+    "What-If Simulator": "🎛️",
+    "Recommendations": "💡",
+    "Production Analysis": "🏭",
+    "Cost Analysis": "💰",
+    "Multi-Plant & Cost Allocation": "🏢",
+    "Manufacturing Variance": "📉",
+    "Inventory Analysis": "📦",
+    "Risk Register": "⚠️",
+    "Predictive Analytics": "🔮",
+    "Executive Report": "📋",
+    "Institutional Memory": "🧠",
+    "Multi-Agent Collaboration": "🤝",
+    "AI Factory OS": "⚡",
+}
+
+def get_current_role() -> str:
+    """Ambil role user dari session state. Fallback: 'Factory Manager'."""
+    import streamlit as st
+    user = st.session_state.get("user") or st.session_state.get("_user")
+    if isinstance(user, dict):
+        return user.get("role", "Factory Manager")
+    role = st.session_state.get("role")
+    if role:
+        return str(role)
+    return "Factory Manager"
+
+def get_allowed_menus(role: str) -> dict:
+    """Return nested dict menu yang diizinkan untuk role tertentu."""
+    return ROLE_MENUS.get(role, ROLE_MENUS["Factory Manager"])
+
+def get_allowed_agents(role: str) -> list:
+    """Return list agent yang diizinkan untuk role tertentu."""
+    return ROLE_AGENTS.get(role, ROLE_AGENTS["Factory Manager"])

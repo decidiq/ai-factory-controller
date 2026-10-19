@@ -16,6 +16,7 @@ import streamlit as st
 from fc.agents import list_agents, run_orchestrated
 from fc.agents import memory as agent_memory
 from fc.agents import hitl
+from fc.ui.auth import get_current_role, get_allowed_agents
 
 
 CSS = """
@@ -193,11 +194,33 @@ def _render_header():
 
 def _render_sidebar():
     st.sidebar.markdown("### 🤖 Pilih Agent")
-    agents = list_agents()
-    options = ["auto"] + [a["name"] for a in agents]
+    
+    # Ambil role & filter agent sesuai izin
+    role = get_current_role()
+    allowed_agent_names = get_allowed_agents(role)
+    
+    all_agents = list_agents()
+    # Hanya tampilkan agent yang diizinkan
+    agents = [a for a in all_agents if a["name"] in allowed_agent_names]
+    
+    # Susun opsi
+    options = []
+    if "auto" in allowed_agent_names:
+        options.append("auto")
+    options.extend([a["name"] for a in agents])
+
+    # Label tampilan
     labels = {"auto": "🪄 Auto (orchestrator)"}
     for a in agents:
         labels[a["name"]] = f"• {a['role']}"
+
+    if not options:
+        st.sidebar.warning("Role Anda tidak memiliki akses ke agent apapun.")
+        return "auto"
+
+    # Set default pilihan jika belum ada atau tidak valid
+    if "_agents_choice" not in st.session_state or st.session_state["_agents_choice"] not in options:
+        st.session_state["_agents_choice"] = options[0]
 
     choice = st.sidebar.radio(
         "Agent",
@@ -213,6 +236,10 @@ def _render_sidebar():
             st.sidebar.caption(
                 "🔧 Tools: " + ", ".join(f"`{t}`" for t in meta["tools"])
             )
+            
+    # Tampilkan info role di sidebar
+    st.sidebar.caption(f"🔒 Akses: **{role}**")
+    
     return choice
 
 
@@ -334,7 +361,6 @@ def _render_approval_panel(result, task: str):
     user = hitl.get_current_user()
     st.caption(f"👤 Login sebagai: **{user}**")
 
-    # Notes input
     notes = st.text_input(
         "Catatan (opsional)",
         placeholder="mis. Setuju — perlu verifikasi mesin M-04 dulu",
@@ -409,6 +435,7 @@ def _render_recent_decisions():
             notes = str(r.get("notes", "")).strip()
             if notes:
                 st.caption(f"   💬 _{notes}_")
+
 
 def render(ds, scope) -> None:
     _inject_css()
