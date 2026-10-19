@@ -3,7 +3,7 @@
 Beberapa agent bekerja bareng untuk 1 task kompleks:
 - Pilih mode Auto (executive pilih agent) atau Manual (user pilih)
 - Jalankan setiap agent
-- Executive sintesis jawaban mereka
+- Executive sintesis jawaban mereka (streaming)
 - Lihat breakdown per-agent + konsensus
 """
 from datetime import datetime
@@ -197,6 +197,7 @@ def _render_mode_selector():
     st.caption("💡 Auto: keyword task → pilih agent yang relevan. Manual: kontrol penuh.")
     return mode, selected
 
+
 def _render_prompts():
     st.markdown("**💡 Quick prompts**")
     cols = st.columns(len(QUICK_PROMPTS))
@@ -205,21 +206,6 @@ def _render_prompts():
             if st.button(p, key=f"_collab_prompt_{i}", use_container_width=True):
                 st.session_state["_collab_task_input"] = p
                 st.rerun()
-
-
-def _render_synthesis(synth: str, synth_error):
-    if not synth and not synth_error:
-        return
-    html = (
-        '<div class="mac-synth">'
-        '<div class="mac-synth-label">🧠 Sintesis Executive Advisor</div>'
-        '</div>'
-    )
-    st.markdown(html, unsafe_allow_html=True)
-    if synth_error:
-        st.warning(f"⚠️ Sintesis gagal: {synth_error}")
-    if synth:
-        st.markdown(synth)
 
 
 def _render_agent_results(result):
@@ -287,6 +273,7 @@ def _render_history():
             st.caption(h["task"])
             st.markdown("---")
 
+
 def _render_approval_synthesis(result):
     """Panel approval untuk sintesis Executive."""
     if not result.synthesis:
@@ -309,14 +296,11 @@ def _render_approval_synthesis(result):
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        approve = st.button("✅ Setujui", type="primary",
-                            use_container_width=True, key="_hitl_collab_approve")
+        approve = st.button("✅ Setujui", type="primary", use_container_width=True, key="_hitl_collab_approve")
     with c2:
-        reject = st.button("❌ Tolak", use_container_width=True,
-                           key="_hitl_collab_reject")
+        reject = st.button("❌ Tolak", use_container_width=True, key="_hitl_collab_reject")
     with c3:
-        noted = st.button("📝 Catat saja", use_container_width=True,
-                          key="_hitl_collab_noted")
+        noted = st.button("📝 Catat saja", use_container_width=True, key="_hitl_collab_noted")
 
     decision = None
     if approve:
@@ -328,20 +312,13 @@ def _render_approval_synthesis(result):
 
     if decision:
         rid = hitl.save_decision(
-            recommendation=result.task,
-            decision=decision,
-            notes=notes,
-            user=user,
-            agent="executive-collab",
-            confidence=result.avg_confidence,
+            recommendation=result.task, decision=decision, notes=notes, user=user,
+            agent="executive-collab", confidence=result.avg_confidence, 
             extra_tags=["phase5c", "synthesis", f"agents:{','.join(result.agents_run)}"],
         )
         if rid > 0:
             icon = {"approve": "✅", "reject": "❌", "noted": "📝"}[decision]
-            st.success(
-                f"{icon} Sintesis tersimpan (ID #{rid}). "
-                f"Masuk ke Institutional Memory."
-            )
+            st.success(f"{icon} Sintesis tersimpan (ID #{rid}). Masuk ke Institutional Memory.")
         else:
             st.error("❌ Gagal menyimpan keputusan.")
 
@@ -360,6 +337,7 @@ def _render_recent_decisions():
             rec = str(r.get("recommendation", ""))[:100]
             ts = str(r.get("timestamp", ""))[:16]
             st.caption(f"{icon} **{ts}** · {r.get('user', '?')} · {rec}…")
+
 
 def render(ds, scope) -> None:
     _inject_css()
@@ -398,10 +376,12 @@ def render(ds, scope) -> None:
         with st.spinner("Menjalankan beberapa agent…"):
             try:
                 orch = CollaborativeOrchestrator()
+                # PENTING: skip_synthesis=True agar sintesis tidak jalan dua kali
                 result = orch.run(
                     task, ds, scope,
                     agents=selected if mode == "manual" else None,
                     mode=mode,
+                    skip_synthesis=True
                 )
             except Exception as exc:
                 st.error(f"❌ Gagal menjalankan kolaborasi: `{exc}`")
@@ -409,15 +389,22 @@ def render(ds, scope) -> None:
 
         st.session_state["_collab_history"].append({
             "time": datetime.now().strftime("%H:%M:%S"),
-            "task": task,
-            "mode": mode,
-            "agents": result.agents_run,
-            "confidence": result.avg_confidence,
-            "duration_ms": result.total_duration_ms,
+            "task": task, "mode": mode, "agents": result.agents_run,
+            "confidence": result.avg_confidence, "duration_ms": result.total_duration_ms,
         })
 
         _render_meta(result)
-        _render_synthesis(result.synthesis, result.synthesis_error)
+        
+        # --- STREAMING SINTESIS ---
+        st.markdown("### 🧠 Sintesis Executive Advisor")
+        if _is_demo_mode():
+            st.info("🔒 **Mode Demo** — sintesis AI dinonaktifkan.")
+            result.synthesis = "Mode demo aktif"
+        else:
+            synthesis_text = st.write_stream(orch.stream_synthesis(task, result.agent_results))
+            result.synthesis = synthesis_text
+            result.synthesis_error = None
+            
         _render_agent_results(result)
 
         # Panel approval HITL (untuk sintesis)

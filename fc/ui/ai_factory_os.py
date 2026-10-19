@@ -3,7 +3,7 @@
 Ganti placeholder 'COMING SOON' jadi dashboard fungsional:
 - Pilih agent (auto-route atau manual)
 - Ketik task / pakai quick prompts
-- Lihat hasil: narasi + confidence + tools used + duration
+- Lihat hasil: narasi (streaming) + confidence + tools used + duration
 - Toggle raw data dari tools
 - History per session
 
@@ -13,7 +13,8 @@ from datetime import datetime
 
 import streamlit as st
 
-from fc.agents import list_agents, run_orchestrated
+from fc.agents import list_agents, get_agent, route
+from fc.agents.base import AgentResult
 from fc.agents import memory as agent_memory
 from fc.agents import hitl
 from fc.ui.auth import get_current_role, get_allowed_agents
@@ -195,21 +196,17 @@ def _render_header():
 def _render_agent_selector():
     st.markdown("### 🤖 Pilih Agent")
     
-    # Ambil role & filter agent sesuai izin
     role = get_current_role()
     allowed_agent_names = get_allowed_agents(role)
     
     all_agents = list_agents()
-    # Hanya tampilkan agent yang diizinkan
     agents = [a for a in all_agents if a["name"] in allowed_agent_names]
     
-    # Susun opsi
     options = []
     if "auto" in allowed_agent_names:
         options.append("auto")
     options.extend([a["name"] for a in agents])
 
-    # Label tampilan
     labels = {"auto": "🪄 Auto (orchestrator)"}
     for a in agents:
         labels[a["name"]] = f"• {a['role']}"
@@ -218,11 +215,9 @@ def _render_agent_selector():
         st.warning("Role Anda tidak memiliki akses ke agent apapun.")
         return "auto"
 
-    # Set default pilihan jika belum ada atau tidak valid
     if "_agents_choice" not in st.session_state or st.session_state["_agents_choice"] not in options:
         st.session_state["_agents_choice"] = options[0]
 
-    # Gunakan st.radio horizontal (bukan sidebar)
     choice = st.radio(
         "Agent",
         options,
@@ -239,6 +234,7 @@ def _render_agent_selector():
     
     return choice
 
+
 def _render_prompts(choice: str):
     prompts = QUICK_PROMPTS.get(choice, QUICK_PROMPTS["auto"])
     st.markdown("**💡 Quick prompts**")
@@ -248,42 +244,6 @@ def _render_prompts(choice: str):
             if st.button(p, key=f"_agents_prompt_{i}", use_container_width=True):
                 st.session_state["_agents_task_input"] = p
                 st.rerun()
-
-
-def _render_result(result, force_agent: str):
-    st.markdown("### 📋 Hasil")
-
-    if force_agent == "auto":
-        st.caption(f"🪄 Auto-routed ke agent: `{result.agent}`")
-
-    if result.error and "Mode Demo" not in result.error:
-        st.warning(f"⚠️ {result.error}")
-
-    st.markdown(result.content)
-
-    tools_html = " ".join(
-        f'<span class="tool-pill">{t}</span>' for t in result.source_tools
-    ) or '<em style="color:#666">(tidak ada tool)</em>'
-
-    meta_html = (
-        f'<div class="os-meta">'
-        f'<strong>Agent:</strong> {result.agent} &nbsp;·&nbsp; '
-        f'<strong>Confidence:</strong> {result.confidence}% &nbsp;·&nbsp; '
-        f'<strong>Durasi:</strong> {result.duration_ms} ms &nbsp;·&nbsp; '
-        f'<strong>Tools:</strong> {tools_html}'
-        f'</div>'
-    )
-    st.markdown(meta_html, unsafe_allow_html=True)
-
-    with st.expander("🔍 Lihat data mentah dari tools"):
-        for tool_name, payload in result.data.items():
-            ok = payload.get("ok")
-            status = "✅" if ok else "❌"
-            st.markdown(f"**{status} `{tool_name}`**")
-            if ok:
-                st.code(payload.get("text", ""), language="text")
-            else:
-                st.error(payload.get("error", "unknown error"))
 
 
 def _render_history():
@@ -301,7 +261,6 @@ def _render_history():
 
 
 def _render_memory_panel():
-    """Panel memory: stats + tombol clear."""
     st_stats = agent_memory.stats()
 
     with st.expander(
@@ -346,8 +305,8 @@ def _render_memory_panel():
                 st.warning(f"⚠️ {n} run dihapus")
                 st.rerun()
 
+
 def _render_approval_panel(result, task: str):
-    """Panel approve/reject setelah agent run."""
     st.markdown("### 🤝 Keputusan Anda")
     st.caption(
         "Setiap keputusan tercatat permanen di Institutional Memory (Fase 3). "
@@ -365,23 +324,11 @@ def _render_approval_panel(result, task: str):
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        approve = st.button(
-            "✅ Setujui", type="primary",
-            use_container_width=True,
-            key=f"_hitl_approve_{result.agent}",
-        )
+        approve = st.button("✅ Setujui", type="primary", use_container_width=True, key=f"_hitl_approve_{result.agent}")
     with c2:
-        reject = st.button(
-            "❌ Tolak",
-            use_container_width=True,
-            key=f"_hitl_reject_{result.agent}",
-        )
+        reject = st.button("❌ Tolak", use_container_width=True, key=f"_hitl_reject_{result.agent}")
     with c3:
-        noted = st.button(
-            "📝 Catat saja",
-            use_container_width=True,
-            key=f"_hitl_noted_{result.agent}",
-        )
+        noted = st.button("📝 Catat saja", use_container_width=True, key=f"_hitl_noted_{result.agent}")
 
     decision = None
     if approve:
@@ -393,26 +340,17 @@ def _render_approval_panel(result, task: str):
 
     if decision:
         rid = hitl.save_decision(
-            recommendation=task,
-            decision=decision,
-            notes=notes,
-            user=user,
-            agent=result.agent,
-            confidence=result.confidence,
-            extra_tags=["phase5d", "single-agent"],
+            recommendation=task, decision=decision, notes=notes, user=user,
+            agent=result.agent, confidence=result.confidence, extra_tags=["phase5d", "single-agent"],
         )
         if rid > 0:
             icon = {"approve": "✅", "reject": "❌", "noted": "📝"}[decision]
-            st.success(
-                f"{icon} Keputusan tersimpan (ID #{rid}). "
-                f"Institutional Memory akan update otomatis."
-            )
+            st.success(f"{icon} Keputusan tersimpan (ID #{rid}). Institutional Memory akan update otomatis.")
         else:
             st.error("❌ Gagal menyimpan keputusan. Cek log database.")
 
 
 def _render_recent_decisions():
-    """Panel kecil: keputusan terakhir dari user."""
     try:
         recent = hitl.recent_decisions(limit=5)
     except Exception:
@@ -465,27 +403,61 @@ def render(ds, scope) -> None:
     task = st.session_state.get("_agents_task_input", "")
 
     if run_btn and task.strip():
-        with st.spinner("Menjalankan agent…"):
-            try:
-                force = None if choice == "auto" else choice
-                result = run_orchestrated(task, ds, scope, force_agent=force)
-            except Exception as exc:
-                st.error(f"❌ Gagal menjalankan agent: `{exc}`")
-                return
+        force = None if choice == "auto" else choice
+        name = choice if force else route(task)
+        
+        st.markdown("### 📋 Hasil")
+        if choice == "auto":
+            st.caption(f"🪄 Auto-routed ke agent: `{name}`")
+            
+        agent = get_agent(name)
+        
+        holder = {}
+        def gen_wrapper():
+            for item in agent.stream(task, ds, scope):
+                if isinstance(item, AgentResult):
+                    holder['result'] = item
+                else:
+                    yield item
+                    
+        st.write_stream(gen_wrapper())
+        result = holder.get('result')
+        
+        if result:
+            if result.error and "Mode Demo" not in result.error:
+                st.warning(f"⚠️ {result.error}")
+                
+            tools_html = " ".join(f'<span class="tool-pill">{t}</span>' for t in result.source_tools) or '<em style="color:#666">(tidak ada tool)</em>'
+            meta_html = (
+                f'<div class="os-meta">'
+                f'<strong>Agent:</strong> {result.agent} &nbsp;·&nbsp; '
+                f'<strong>Confidence:</strong> {result.confidence}% &nbsp;·&nbsp; '
+                f'<strong>Durasi:</strong> {result.duration_ms} ms &nbsp;·&nbsp; '
+                f'<strong>Tools:</strong> {tools_html}'
+                f'</div>'
+            )
+            st.markdown(meta_html, unsafe_allow_html=True)
 
-        st.session_state["_agents_history"].append({
-            "time": datetime.now().strftime("%H:%M:%S"),
-            "task": task,
-            "agent": result.agent,
-            "confidence": result.confidence,
-            "duration_ms": result.duration_ms,
-        })
+            with st.expander("🔍 Lihat data mentah dari tools"):
+                for tool_name, payload in result.data.items():
+                    ok = payload.get("ok")
+                    status = "✅" if ok else "❌"
+                    st.markdown(f"**{status} `{tool_name}`**")
+                    if ok:
+                        st.code(payload.get("text", ""), language="text")
+                    else:
+                        st.error(payload.get("error", "unknown error"))
+                        
+            st.session_state["_agents_history"].append({
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "task": task,
+                "agent": result.agent,
+                "confidence": result.confidence,
+                "duration_ms": result.duration_ms,
+            })
 
-        _render_result(result, choice)
-
-        # Panel approval HITL
-        st.markdown("---")
-        _render_approval_panel(result, task)
+            st.markdown("---")
+            _render_approval_panel(result, task)
 
     _render_history()
     _render_recent_decisions()
